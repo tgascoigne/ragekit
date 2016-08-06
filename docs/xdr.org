@@ -1,0 +1,310 @@
+ XDR File Format
+==================
+
+This specification is divided into two parts: System and Graphics. If you're
+reading from a container such as RPF7, you need to ensure that the partition
+offsets are calculated correctly and applied to each address as specified in
+the ptr32 section.
+
+Credits
+------------------
+
+This documentation is based off of work started by Reoze and Interdpth on
+GTAForums.com, and the WDR specification at gtamodding.com. It is brought
+together here with my own work to provide a complete and clean description
+of the file format for the public.
+
+System Partition
+==================
+
+Drawable Header
+------------------
+
+|--------+-----------+------------------|
+| Offset | Type      | Field            |
+|--------+-----------+------------------|
+|   0x00 | uint32    | vtable           |
+|   0x04 | ptr32     | block_map        |
+|   0x08 | ptr32     | shader_tbl       |
+|   0x0C | ptr32     | skeleton         |
+|   0x10 | vec4      | center_pos       |
+|   0x20 | vec4      | bounds_min       |
+|   0x30 | vec4      | bounds_max       |
+|   0x40 | ptr32     | model_collection |
+|   0x44 | ptr32[3]  | lod_collections  |
+|   0x50 | vec4      | point_max        |
+|   0x60 | uint16    |                  |
+|   0x62 | uint16    |                  |
+|   0x64 | uint32[4] |                  |
+|   0x74 | uint32    |                  |
+|   0x78 | ptr32     |                  |
+|   0x7C | ptr32     | title            |
+|--------+-----------+------------------|
+
+Shader Collection (+shader_tbl)
+------------------
+
+|--------+--------+--------------------|
+| Offset | Type   | Field              |
+|--------+--------+--------------------|
+|   0x00 | uint32 | vtable             |
+|   0x04 | ptr32  | texture_dictionary |
+|   0x08 | ptr32  | shader_tbl         |
+|   0x0C | uint16 | shader_count       |
+|   0x0E | uint16 | shader_size        |
+|--------+--------+--------------------|
+
+Shader Header (+shader_tbl[i]: 0 <= i < shader_count)
+------------------
+
+|--------+--------+--------------------|
+| Offset | Type   | Field              |
+|--------+--------+--------------------|
+|   0x00 | ptr32  | shader_params      |
+|   0x04 | uint32 |                    |
+|   0x08 | uint8  | shader_param_count |
+|   0x09 | uint8  |                    |
+|   0x0A | uint16 |                    |
+|   0x0C | uint32 |                    |
+|   0x10 | uint32 |                    |
+|   0x14 | uint32 |                    |
+|   0x18 | uint32 |                    |
+|   0x1C | uint32 |                    |
+|--------+--------+--------------------|
+
+Shader Parameter (+shader_params+(i*0x8): 0 <= i < shader_param_count)
+------------------
+
+|--------+--------+-------------------+----------------------------|
+| Offset | Type   | Field             |                            |
+|--------+--------+-------------------+----------------------------|
+|   0x00 | uint32 | shader_param_type | See Shader Parameter Types |
+|   0x04 | ptr32  | shader_param      |                            |
+|--------+--------+-------------------+----------------------------|
+
+Shader Parameter Types
+------------------
+
+Not all parameter types are known about, and the uint32 may actually
+be a combination of smaller data types.
+
+|------------+--------+-----------------|
+|      Value | Type   |                 |
+|------------+--------+-----------------|
+| 0x00000000 | Bitmap | Diffuse texture |
+| 0x00020000 | Bitmap | Normal texture  |
+| 0x01DF0000 |        |                 |
+| 0x01DE0000 |        |                 |
+| 0x01DD0000 |        |                 |
+| 0x01DC0000 |        |                 |
+| 0x01DB0000 |        |                 |
+| 0x01DA0000 |        |                 |
+| 0x01D90000 |        |                 |
+| 0x01D80000 |        |                 |
+| 0x01FF0000 |        |                 |
+| 0x01FE0000 |        |                 |
+| 0x01FD0000 |        |                 |
+|------------+--------+-----------------|
+
+Bitmap Parameter
+------------------
+
+|--------+--------+--------|
+| Offset | Type   | Field  |
+|--------+--------+--------|
+|   0x00 | uint32 | vtable |
+|   0x04 | uint32 |        |
+|   0x08 | uint32 |        |
+|   0x0C | uint32 |        |
+|   0x10 | uint32 |        |
+|   0x14 | uint32 |        |
+|   0x18 | uint32 |        |
+|   0x1C | uint32 |        |
+|   0x20 | ptr32  | name   |
+|   0x24 | uint32 |        |
+|   0x28 | uint32 |        |
+|   0x2C | uint32 |        |
+|   0x20 | uint32 |        |
+|   0x24 | ptr32  |        |
+|   0x28 | uint32 |        |
+|   0x2C | uint32 |        |
+|--------+--------+--------|
+
+Model Collection (+model_collection)
+------------------
+
+|--------+--------+-------------|
+| Offset | Type   | Field       |
+|--------+--------+-------------|
+|   0x00 | ptr32  | model_tbl   |
+|   0x04 | uint16 | model_count |
+|   0x06 | uint16 | model_size  |
+|--------+--------+-------------|
+
+Model (+model_tbl[i]: 0 <= i < model_count)
+------------------
+
+|--------+--------+-----------------|
+| Offset | Type   | Field           |
+|--------+--------+-----------------|
+|   0x00 | uint32 | vtable          |
+|   0x04 | ptr32  | geom_collection |
+|   0x08 | uint16 | geom_count      |
+|   0x0A | uint16 | geom_size       |
+|   0x0C | ptr32  | vec_collection  |
+|   0x10 | ptr32  | mat_collection  |
+|--------+--------+-----------------|
+
+Geometry (+geom_collection[i]: 0 <= i < geom_count)
+------------------
+
+|--------+--------+----------------|
+| Offset | Type   | Field          |
+|--------+--------+----------------|
+|   0x00 | uint32 | vtable         |
+|   0x04 | uint32 |                |
+|   0x08 | uint32 |                |
+|   0x0C | ptr32  | vertex_buffer  |
+|   0x10 | uint32 |                |
+|   0x14 | uint32 |                |
+|   0x18 | uint32 |                |
+|   0x0C | ptr32  | index_buffer   |
+|   0x20 | uint32 |                |
+|   0x24 | uint32 |                |
+|   0x28 | uint32 |                |
+|   0x2C | uint32 | index_count    |
+|   0x30 | uint32 | face_count     |
+|   0x34 | uint16 | vert_count     |
+|   0x36 | uint16 | primitive_type |
+|--------+--------+----------------|
+
+Vertex Buffer (+vertex_buffer)
+------------------
+
+|--------+--------+-------------|
+| Offset | Type   | Field       |
+|--------+--------+-------------|
+|   0x00 | uint32 | vtable      |
+|   0x04 | uint16 | vert_stride |
+|   0x06 | uint16 |             |
+|   0x08 | ptr32  | vert_data   |
+|   0x0C | uint32 | vert_count  |
+|   0x10 | ptr32  | vert_data   |
+|   0x04 | uint32 |             |
+|   0x18 | ptr32  | vbuf_info   |
+|   0x1C | ptr32  |             |
+|--------+--------+-------------|
+
+Index Buffer (+index_buffer)
+------------------
+
+|--------+--------+-------------|
+| Offset | Type   | Field       |
+|--------+--------+-------------|
+|   0x00 | uint32 | vtable      |
+|   0x04 | uint32 | index_count |
+|   0x08 | ptr32  | index_data  |
+|   0x0C | ptr32  | index_info  |
+|--------+--------+-------------|
+
+Vertex Buffer Info (+vbuf_info)
+------------------
+
+|--------+--------+-------------+-----------------------------|
+| Offset | Type   | Field       |                             |
+|--------+--------+-------------+-----------------------------|
+|   0x00 | uint32 | vert_fmt    | See Vertex Format Flags     |
+|   0x04 | uint16 | vert_stride |                             |
+|   0x06 | uint16 |             | correlates with vert_stride |
+|   0x08 | uint32 |             | usually 0xAA111111          |
+|   0x0C | uint32 |             | usually 0x1199A996          |
+|--------+--------+-------------+-----------------------------|
+
+Graphics Partition
+==================
+
+Vertex (+vert_data+(i*vert_stride): 0 <= i < vert_count)
+------------------
+
+Vertex format dependent on flags. See Vertex Format Flags.
+
+Index (+index_data+(i*6): 0 <= i < face_count)
+------------------
+
+|--------+--------+-------|
+| Offset | Type   | Field |
+|--------+--------+-------|
+|   0x00 | uint16 | a     |
+|   0x02 | uint16 | b     |
+|   0x04 | uint16 | c     |
+|--------+--------+-------|
+
+todo: is index stride defined anywhere?
+
+Types
+==================
+
+ptr32
+------------------
+
+|--------+--------+---------|
+| Offset | Type   | Field   |
+|--------+--------+---------|
+|   0x00 | uint8  | section |
+|   0x01 | uint24 | offset  |
+|--------+--------+---------|
+
+|---------+------------------------|
+| Section | Addr                   |
+|---------+------------------------|
+|    0x50 | System Part + Offset   |
+|    0x60 | Graphics Part + Offset |
+|---------+------------------------|
+
+vec4
+------------------
+
+|--------+-------+-------|
+| Offset | Type  | Field |
+|--------+-------+-------|
+|   0x00 | float | x     |
+|   0x04 | float | y     |
+|   0x08 | float | z     |
+|   0x0C | float | w     |
+|--------+-------+-------|
+
+Vertex Format Flags
+------------------
+
+This flag specifies which fields are active in the vertex buffer.
+This can be used to calculate the offset of any field in the
+vertex buffer, provided you know the size of each field before it.
+(See resource/drawable/vertex.go)
+
+Fields:
+|----------------+-------+-------|
+| Position (RTL) | Flag  | Size  |
+|----------------+-------+-------|
+|              0 | XYZ   | 4 * 3 |
+|              1 |       | 4     |
+|              2 |       | 4     |
+|              3 |       | 4     |
+|              4 | Color | 4     |
+|              5 |       | 8     |
+|              6 | UV    | 4     |
+|              7 |       |       |
+|              8 |       |       |
+|----------------+-------+-------|
+
+Examples:
+|--------+--------+-----------------|
+| Stride | Format |          Format |
+|--------+--------+-----------------|
+|     44 | 0x40FF | 100000011111111 |
+|     40 | 0x407F | 100000001111111 |
+|     36 | 0x007F | 000000001111111 |
+|     36 | 0x40F9 | 100110111001100 |
+|     32 | 0x4079 | 100000001111001 |
+|     28 | 0x4059 | 100000001011001 |
+|     24 | 0x0059 | 000000001011001 |
+|--------+--------+-----------------|

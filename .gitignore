@@ -1,0 +1,12 @@
+# Proprietary stuff
+gtav_*.dat
+
+# Resources
+*.obj
+*.mtl
+*.dds
+
+# Emacs stuff
+*~
+\#*\#
+.\#*

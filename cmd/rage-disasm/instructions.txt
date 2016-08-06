@@ -1,0 +1,129 @@
+All credits to (presumably) reoze for this list. I accidentally stumbled upon it on Pastebin.
+
+("nop", 1    ,0  ),
+("iadd", 1   ,1  ),  // 1 - integer +, stack operands
+("isub", 1    ,2 ),  // 2 - integer -, stack operandes
+("imul", 1     ,3),  // 3 - integer *, stack operands
+("idiv", 1     ,4),  // 4 - integer /, stack operands
+("imod", 1     ,5),  // 5 - integer %, stack operands
+("inot", 1     ,6),  // 6 - logical not, stack operand
+("ineg", 1     ,7),  // 7 - integer negate, stack operand
+("icmpeq", 1 , 8  ),  // 8 - integer compare =, stack operands
+("icmpne", 1 ,9  ),  // 9 - integer compare !=, stack operands
+("icmpgt", 1  ,10 ),  // 10 - integer compare >, stack operands
+("icmpge", 1  ,11 ),  // 11 - integer compare >=, stack operands
+("icmplt", 1   ,12),  // 12 - integer compare <, stack operands
+("icmple", 1   ,13),  // 13 - integer compare <=, stack operands
+("fadd", 1     ,14),  // 14 - float +, stack operands
+("fsub", 1     ,15),  // 15 - float -, stack operands
+("fmul", 1     ,16),  // 16 - float *, stack operands
+("fdiv", 1     ,17),  // 17 - float /, stack operands
+("fmod", 1     ,18),  // 18 - float %, stack operands
+("fneg", 1     ,19),  // 19 - float negate, stack operands
+("fcmpeq", 1   ,20),  // 20 - float compare equal
+("fcmpne", 1   ,21),  // 21 - float compare not equal
+("fcmpgt", 1   ,22),  // 22 - float compare greater than
+("fcmpge", 1   ,23),  // 23 - float compare greater or equal
+("fcmplt", 1   ,24),  // 24 - float compare less than
+("fcmple", 1   ,25),  // 25 - float compare less than or equal
+("vadd", 1     ,26),  // 26 - vector +, stack operands
+("vsub", 1     ,27),  // 27 - vector -, stack operands
+("vmul", 1     ,28),  // 28 - vector *, stack operands
+("vdiv", 1     ,29),  // 29 - vector /, stack operands
+("vneg", 1     ,30),  // 30 - vector negate, stack operands
+("iand", 1     ,31),  // 31 - integer &, stack operands
+("ior", 1      ,32),  // 32 - integer |, stack operands
+("ixor", 1     ,33),  // 33 - integer ^, stack operands
+("itof", 1     ,34),  // 34 - integer to float
+("ftoi", 1     ,35),  // 35 - float to integer
+("dup2", 1     ,36),  // 36 - duplicate stack variable
+("ipush1", 2   ,37),  // 37   ipush imm1
+("ipush12", 3  ,38),  // 38   ipush imm1, imm1
+("ipush13", 4  ,39),  // 39   ipush imm1, imm1, imm1
+("ipush", 5    ,40),  // 40   push integer immediate
+("fpush", 5    ,41),  // 41    push float immedate
+("dup", 1      ,42),  // 42
+("drop", 1     ,43),  // 43   pop stack variable
+("native", 4   ,44),  // 44   call native
+("enter", 0    ,45),  // 45
+("ret", 3      ,46),  // 46   return
+("pget", 1     ,47),  // 47   get pointer
+("pset", 1     ,48),  // 48   set pointer
+("ppeekset", 1 ,49),  // 49
+("tostack", 1  ,50),  // 50
+("fromstack", 1, 51),  // 51
+("parray", 2   , 52),  // 52
+("aget",2      , 53),  // 53 - get an array element to the stack
+("aset",2      ,54),  // 54 - set an array lelment from the stack
+("pframe1",  2 , 55),  // 55 - change frame
+("getf",   2   ,56),  // 56 -
+("setf",   2   ,57),  // 57 -
+("stackgetp",2  ,58),  // 58
+("stackget", 2  ,59),  // 59
+("stackset", 2 , 60),  // 60
+("iaddimm1", 2  , 61),  // 61 - integer add immediate to stack operand
+("imulimm1", 2  , 62),  // 62 -
+("arraygetp", 1  , 63),  // 63 - shift left by 2 and add stack operands
+("arraygetpi1", 2 , 64),       // 64
+("arraygeti1", 2, 65), // 65
+("arrayset", 2, 66), // 66
+("ipush2",      3, 67), // 67 - push short
+("iaddimm2",    3 , 68),  // 68 - add immediate short to stack operand
+("imulimm2",    3 , 69),  // 69 -
+("lsh2immadd", 3, 70),  //70
+("unk_71", 3, 71), // 71
+("lsh2immaddpeek", 3, 72),
+("arraygetp2",   3, 73),
+("arrayget2",    3, 74),
+("arrayset2",    3, 75),
+("pframe2",      3, 76), // set frame short
+("frameget2",    3, 77),
+("frameset2",    3, 78),
+("pstatic2",     3, 79),
+("staticget2",   3, 80),
+("staticset2",   3, 81),
+("pglobal2",     3, 82),
+("globalget2",   3, 83),
+("globalset2",   3, 84),
+("jmp", 3, 85), //jmp unconditionally signed
+("jz", 3, 86), // jump if zero
+("jmne", 3, 87), //jmp not equal
+("jmpe", 3, 88), // jmp if equal
+("jmpler", 3, 89), // jump less than or equal relative
+("jmltr", 3, 90), // jump less than relative
+("jmpge", 3, 91),
+("jmpgt", 3, 92),
+("call", 4, 93),
+("pglobal3", 4, 94),
+("globalset3", 4, 95),
+("globalget3", 4, 96),
+("ipush3", 4     , 97),  // 97   jump if false relative signed imm2
+("switchr2", 0, 98), // 98
+("spush", 1, 99), // 99
+("spush0", 1 , 100),  // 100  push ""
+("scpy", 2   , 101),  // 101 string cpy
+("itos", 2   , 102),  // 102 int to short
+("sadd", 2   , 103), //103 signed add
+("saddi", 2  , 104), //104 signed add immediate
+("sncpy", 1  , 105), //105
+("catch", 1  , 106),  // 106 catch block
+("throw", 1  , 107),  // 107 throw exception
+("pcall", 1  , 108),  // 108  length = 2 + byte[1]*6
+("iimmn1",1  , 109), // 136  puh -1
+("iimm0", 1  , 110), // 137  push 0
+("iimm1", 1  , 111), // 138  push 1
+("iimm2", 1  , 112), // 139  push 2
+("iimm3", 1  , 113), // 140  push 3
+("iimm4", 1  , 114), // 141  push 4
+("iimm5", 1  , 115), // 142  push 5
+("iimm6", 1  , 116), // 143  push 6
+("iimm7", 1  , 117), // 144  push 7
+("fimmn1", 1 , 118), // 145  push -1.0f
+("fimm0", 1  , 119),  // 146  push 0.0f
+("fimm1", 1  , 120),  // 147  push 1.0f
+("fimm2", 1  , 121),  // 148  push 2.0f
+("fimm3", 1  , 122),  // 149  push 3.0f
+("fimm4", 1  , 123),  // 150  push 4.0f
+("fimm5", 1  , 124),  // 151  push 5.0f
+("fimm6", 1  , 125),  // 152  push 6.0f
+("fimm7", 1  , 126)   // 155  push 7.0f
