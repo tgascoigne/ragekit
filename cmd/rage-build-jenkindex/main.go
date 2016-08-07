@@ -3,9 +3,10 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/tgascoigne/ragekit/jenkins"
 )
@@ -58,19 +59,27 @@ func main() {
 		Hashes:   make(map[string]Jenkins32),
 	}
 
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		line := scanner.Text()
-		hashFunc.UpdateArray([]uint8(line))
+	addHash := func(s string) {
+		hashFunc.UpdateArray([]uint8(s))
 		hash := hashFunc.Hash()
 		hashFunc.Reset()
 
-		file.Hashes[line] = Jenkins32(hash)
-		fmt.Printf("hashed %v\n", line)
+		file.Hashes[s] = Jenkins32(hash)
+	}
+
+	addHash(fileName)
+	basename := filepath.Base(fileName)
+	addHash(basename)
+	addHash(strings.TrimSuffix(basename, filepath.Ext(basename)))
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		line := scanner.Text()
+		addHash(line)
 	}
 
 	files.Files = append(files.Files, file)
-	fmt.Printf("%v\n", files)
+
 	bin, err := json.Marshal(files)
 	if err != nil {
 		panic(err)
