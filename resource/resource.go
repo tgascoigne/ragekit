@@ -103,6 +103,9 @@ func (res *Container) DecompressLZX() error {
 func (res *Container) Unpack(data []byte, filename string, filesize uint32) error {
 	reader := bytes.NewReader(data)
 
+	res.Data = data
+	res.size = int64(len(data))
+
 	header := &res.Header
 	if err := binary.Read(reader, binary.BigEndian, header); err != nil {
 		return err
