@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	resMagic  = 0x52534337
+	resMagic1  = 0x52534337
+	resMagic2  = 0x52534307
 	baseSize  = 0x2000
 	stringMax = 256
 )
@@ -31,14 +32,22 @@ var ErrInvalidString error = errors.New("invalid string")
 
 type ContainerHeader struct {
 	Magic    uint32
-	Packing  uint32
+	Type uint8
+	_ [3]uint8
 	SysFlags uint32
 	GfxFlags uint32
 }
 
 const (
-	PackingFlate = 1 << 25
-	PackingNG    = 1 << 27
+	ResourceBN = 0x2b // flate
+	ResourceMap = 0x02 // flate
+	ResourceScript = 0x0a // ng + flate
+	ResourceTexture = 0x0d // flate
+	ResourceDrawable = 0xa5 // flate
+	ResourceFrag = 0xa2 // flate
+	ResourceClip = 0x2e // flate
+	ResourceED = 0x19 // flate
+	ResourceVR = 0x01
 )
 
 type Container struct {
@@ -111,7 +120,7 @@ func (res *Container) Unpack(data []byte, filename string, filesize uint32) erro
 		return err
 	}
 
-	if header.Magic != resMagic {
+	if header.Magic != resMagic1 && header.Magic != resMagic2 {
 		return ErrInvalidResource
 	}
 
@@ -127,7 +136,6 @@ func (res *Container) Unpack(data []byte, filename string, filesize uint32) erro
 	if keyDir == "" {
 		keyDir = "."
 	}
-
 	keys, err := crypto.LoadKeysFromDir(keyDir)
 	if err != nil {
 		panic(err)
@@ -135,18 +143,16 @@ func (res *Container) Unpack(data []byte, filename string, filesize uint32) erro
 
 	ctx := crypto.NewContext(keys)
 
-	if (res.Header.Packing & PackingNG) != 0 {
+	if res.Header.Type == ResourceScript {
 		err = res.DecryptNG(ctx, filename, filesize)
 		if err != nil {
 			fmt.Printf("NG decrypt failed: %v\n", err)
 		}
 	}
 
-	if (res.Header.Packing & PackingFlate) != 0 {
-		err = res.Deflate()
-		if err != nil {
-			fmt.Printf("Deflate failed: %v\n", err)
-		}
+	err = res.Deflate()
+	if err != nil {
+		fmt.Printf("Deflate failed: %v\n", err)
 	}
 
 	return nil
