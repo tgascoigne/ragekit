@@ -16,8 +16,10 @@ import (
 	"github.com/tgascoigne/ragekit/util/stack"
 )
 
+
 const (
 	resMagic  = 0x52534337
+	resMagic2 = 0x52534307
 	baseSize  = 0x2000
 	stringMax = 256
 )
@@ -111,7 +113,7 @@ func (res *Container) Unpack(data []byte, filename string, filesize uint32) erro
 		return err
 	}
 
-	if header.Magic != resMagic {
+	if header.Magic != resMagic && header.Magic != resMagic2 {
 		return ErrInvalidResource
 	}
 
@@ -148,6 +150,8 @@ func (res *Container) Unpack(data []byte, filename string, filesize uint32) erro
 			fmt.Printf("Deflate failed: %v\n", err)
 		}
 	}
+
+	ioutil.WriteFile("decrypted.rage", res.Data, 0744)
 
 	return nil
 }
