@@ -48,7 +48,10 @@ func ReadIndex(reader io.Reader) {
 	}
 	sort.Sort(byHash(Index))
 
-	fd, _ := os.Create("~/jenkindex.sorted")
+	fd, err := os.Create("jenkindex.sorted")
+	if err != nil {
+		panic(err)
+	}
 	defer fd.Close()
 	for _, s := range Index {
 		fmt.Fprintln(fd, s)
@@ -98,9 +101,6 @@ func Lookup(j Jenkins32) string {
 	binSearch = func(s []string, hash uint32) int {
 		n := len(s)
 		i := n / 2
-		if n == 2 {
-
-		}
 
 		h, _ := splitEntry(Index[i])
 		if h < hash {
