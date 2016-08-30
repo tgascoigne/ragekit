@@ -5,13 +5,22 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
 
-type IndexType map[Jenkins32][]string
+var Index []string
 
-var Index map[Jenkins32][]string
+type byHash []string
+
+func (a byHash) Len() int      { return len(a) }
+func (a byHash) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a byHash) Less(i, j int) bool {
+	hash1, _ := splitEntry(Index[i])
+	hash2, _ := splitEntry(Index[j])
+	return hash1 < hash2
+}
 
 const (
 	IndexFileEnv = "RAGEKIT_HASH_INDEX"
@@ -26,10 +35,21 @@ func ReadIndexFromEnv() error {
 	}
 	defer fd.Close()
 
-	return ReadIndex(fd)
+	ReadIndex(fd)
+	return nil
 }
 
-func ReadIndex(reader io.Reader) error {
+func ReadIndex(reader io.Reader) {
+	Index = make([]string, 0)
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		line := scanner.Text()
+		Index = append(Index, line)
+	}
+	sort.Sort(byHash(Index))
+}
+
+/*func ReadIndex(reader io.Reader) error {
 	Index = make(IndexType)
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
@@ -43,18 +63,42 @@ func ReadIndex(reader io.Reader) error {
 		if _, ok := Index[Jenkins32(hash)]; !ok {
 			Index[Jenkins32(hash)] = []string{}
 		}
-		Index[Jenkins32(hash)] = append(Index[Jenkins32(hash)], parts[1])
+		// this forces a copy of parts[1]
+		// I think there was some wierdness going on with the GC when value wasn't copied
+		value := parts[1] + " "
+		value = value[:len(value)-1]
+		Index[Jenkins32(hash)] = append(Index[Jenkins32(hash)], value)
 	}
 	return nil
 }
+*/
 
-func Lookup(j Jenkins32) []string {
+func splitEntry(s string) (uint32, string) {
+	parts := strings.SplitN(s, ":", 2)
+	hash, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		panic(err)
+	}
+
+	return uint32(hash), parts[1]
+}
+
+func Lookup(j Jenkins32) string {
 	if Index == nil {
 		panic("index not loaded")
 	}
 
-	if results, ok := Index[j]; ok {
-		return results
+	n := len(Index)
+
+	index := sort.Search(n, func(i int) bool {
+		hash, _ := splitEntry(Index[i])
+		return hash == uint32(j)
+	})
+
+	if index == n {
+		fmt.Printf("couldn't find it'")
+		return ""
 	}
-	return []string{}
+
+	return Index[index]
 }
