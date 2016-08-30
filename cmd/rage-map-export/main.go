@@ -1,28 +1,64 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/tgascoigne/ragekit/cmd/rage-map-export/ymap"
 	"github.com/tgascoigne/ragekit/cmd/rage-map-export/ytyp"
+	"github.com/tgascoigne/ragekit/jenkins"
 	"github.com/tgascoigne/ragekit/resource"
 )
 
-func main() {
+var batch = flag.Bool("batch", false, "batch conversion")
 
-	var data []byte
-	var err error
+func main() {
+	flag.Parse()
 
 	log.SetFlags(0)
 
-	/* Read the file */
-	in_file := os.Args[1]
-	log.Printf("Exporting %v\n", os.Args[1])
+	jenkins.ReadIndexFromEnv()
+
+	in_file := flag.Arg(0)
+	out_file := flag.Arg(1)
+
+	if *batch {
+		filepath.Walk(in_file, func(path string, f os.FileInfo, err error) error {
+			log.Printf("looking at %v\n", path)
+			if !strings.HasSuffix(path, "ymap") && !strings.HasSuffix(path, "ytyp") {
+				return nil
+			}
+
+			basename := filepath.Base(path)
+			outpath := uniquePath(out_file, basename, "json")
+			doExport(path, outpath)
+			return nil
+		})
+	} else {
+		doExport(in_file, out_file)
+	}
+}
+
+func uniquePath(dir, base, ext string) string {
+	for i := 0; ; i++ {
+		path := fmt.Sprintf("%v/%v_%v.%v", dir, base, i, ext)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			return path
+		}
+	}
+}
+
+func doExport(in_file, out_file string) {
+	var data []byte
+	var err error
+
+	log.Printf("Exporting %v\n", in_file)
 
 	if data, err = ioutil.ReadFile(in_file); err != nil {
 		log.Fatal(err)
@@ -47,17 +83,17 @@ func main() {
 	switch {
 	case strings.Contains(in_file, "map"):
 		/* Unpack the map at 0x10 */
-		ymap := ymap.NewMap()
+		ymap := ymap.NewMap(in_file)
 
-		if err = ymap.Unpack(res, os.Args[2]); err != nil {
+		if err = ymap.Unpack(res, out_file); err != nil {
 			log.Fatal(err)
 		}
 
 	case strings.Contains(in_file, "typ"):
 		/* Unpack the map at 0x10 */
-		ytyp := ytyp.NewDefinition()
+		ytyp := ytyp.NewDefinition(in_file)
 
-		if err = ytyp.Unpack(res, os.Args[2]); err != nil {
+		if err = ytyp.Unpack(res, out_file); err != nil {
 			log.Fatal(err)
 		}
 	}

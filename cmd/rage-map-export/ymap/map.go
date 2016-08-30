@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/tgascoigne/ragekit/jenkins"
 	"github.com/tgascoigne/ragekit/resource"
 	"github.com/tgascoigne/ragekit/resource/types"
 )
@@ -71,7 +72,7 @@ type SectionDef struct {
 
 type InstSection struct {
 	Nil1      uint64
-	ModelHash uint32
+	ModelHash jenkins.Jenkins32
 	Unk1      uint32
 
 	Unk2 [4]uint32
@@ -93,8 +94,8 @@ type InstSection struct {
 
 type LODSection struct {
 	Nil1         uint64
-	ModelHash    uint32
-	LODModelHash uint32
+	ModelHash    jenkins.Jenkins32
+	LODModelHash jenkins.Jenkins32
 	Unk1         [4]uint32
 	Positions    [4]types.Vec4f
 	Unk4         [8]uint16
@@ -110,22 +111,25 @@ type UnknownSection struct {
 
 type Map struct {
 	Header          MapHeader `json:"-"`
-	Somethings      []Unk7Struct
-	SectionList     []SectionDef
+	FileName        string
 	InstSections    []InstSection
+	SectionList     []SectionDef
 	LODSections     []LODSection
 	UnknownSections []UnknownSection
+	Unknown2        []Unk7Struct
 	StringTable     []byte
 }
 
-func NewMap() *Map {
-	return &Map{}
+func NewMap(filename string) *Map {
+	return &Map{
+		FileName: filename,
+	}
 }
 
 func (ymap *Map) Unpack(res *resource.Container, outpath string) error {
 	res.Parse(&ymap.Header)
 
-	fmt.Printf("Header: %#v\n", ymap.Header)
+	//	fmt.Printf("Header: %#v\n", ymap.Header)
 
 	/* parse the section table */
 	err := res.Detour(ymap.Header.SectionListPtr, func() error {
@@ -135,7 +139,7 @@ func (ymap *Map) Unpack(res *resource.Container, outpath string) error {
 		ymap.UnknownSections = make([]UnknownSection, 0)
 		for i := 0; i < int(count); i++ {
 			res.Parse(&ymap.SectionList[i])
-			fmt.Printf("SectionDef %#v\n", ymap.SectionList[i])
+			//			fmt.Printf("SectionDef %#v\n", ymap.SectionList[i])
 
 			switch ymap.SectionList[i].SectionType {
 			case SectionINST:
@@ -144,7 +148,7 @@ func (ymap *Map) Unpack(res *resource.Container, outpath string) error {
 						section := new(InstSection)
 						res.Parse(section)
 						ymap.InstSections = append(ymap.InstSections, *section)
-						fmt.Printf("INST %#v\n", section)
+						//						fmt.Printf("INST %#v\n", section)
 					}
 					return nil
 				})
@@ -155,7 +159,7 @@ func (ymap *Map) Unpack(res *resource.Container, outpath string) error {
 						section := new(LODSection)
 						res.Parse(section)
 						ymap.LODSections = append(ymap.LODSections, *section)
-						fmt.Printf("LOD %#v\n", section)
+						//						fmt.Printf("LOD %#v\n", section)
 					}
 					return nil
 				})
@@ -166,14 +170,14 @@ func (ymap *Map) Unpack(res *resource.Container, outpath string) error {
 						section := new(UnknownSection)
 						res.Parse(section)
 						ymap.UnknownSections = append(ymap.UnknownSections, *section)
-						fmt.Printf("Unknown %#v\n", section)
+						//						fmt.Printf("Unknown %#v\n", section)
 					}
 					return nil
 				})
 
 			case SectionSTRINGS:
 				res.Detour(ymap.SectionList[i].SectionPtr, func() error {
-					fmt.Printf("String table: %x\n", res.Tell())
+					//					fmt.Printf("String table: %x\n", res.Tell())
 					length := int64(ymap.SectionList[i].SizeBytes)
 					ymap.StringTable = make([]byte, length)
 					copy(ymap.StringTable, res.Data[res.Tell():res.Tell()+length])
@@ -193,14 +197,14 @@ func (ymap *Map) Unpack(res *resource.Container, outpath string) error {
 	/* parse the unknown table */
 	err = res.Detour(ymap.Header.Unk7Ptr, func() error {
 		count := ymap.Header.Unk7Count
-		ymap.Somethings = make([]Unk7Struct, count)
+		ymap.Unknown2 = make([]Unk7Struct, count)
 		for i := 0; i < int(count); i++ {
-			res.Parse(&ymap.Somethings[i])
-			fmt.Printf("Something %#v\n", ymap.Somethings[i])
-			res.Detour(ymap.Somethings[i].Unk3Ptr, func() error {
+			res.Parse(&ymap.Unknown2[i])
+			//			fmt.Printf("Something %#v\n", ymap.Unknown2[i])
+			res.Detour(ymap.Unknown2[i].Unk3Ptr, func() error {
 				something2 := new(Unk3Struct)
 				res.Parse(something2)
-				fmt.Printf("Something2 %#v\n", something2)
+				//				fmt.Printf("Something2 %#v\n", something2)
 				return nil
 			})
 		}

@@ -41,31 +41,35 @@ type DefinitionHeader struct {
 
 type Definition struct {
 	Header      DefinitionHeader `json:"-"`
+	FileName    string
 	SectionList []ymap.SectionDef
+	StringTable []byte
 }
 
-func NewDefinition() *Definition {
-	return &Definition{}
+func NewDefinition(filename string) *Definition {
+	return &Definition{
+		FileName: filename,
+	}
 }
 
 func (ytyp *Definition) Unpack(res *resource.Container, outpath string) error {
 	res.Parse(&ytyp.Header)
 
-	fmt.Printf("Header: %#v\n", ytyp.Header)
+	//	fmt.Printf("Header: %#v\n", ytyp.Header)
 
 	/* parse the section table */
 	err := res.Detour(ytyp.Header.SectionListPtr, func() error {
 		count := ytyp.Header.NumSections
-		ytyp.SectionList = make([]SectionDef, count)
+		ytyp.SectionList = make([]ymap.SectionDef, count)
 		for i := 0; i < int(count); i++ {
 			res.Parse(&ytyp.SectionList[i])
-			fmt.Printf("SectionDef %#v\n", ytyp.SectionList[i])
+			//			fmt.Printf("ymap.SectionDef %#v\n", ytyp.SectionList[i])
 
 			switch ytyp.SectionList[i].SectionType {
 
-			case SectionSTRINGS:
+			case ymap.SectionSTRINGS:
 				res.Detour(ytyp.SectionList[i].SectionPtr, func() error {
-					fmt.Printf("String table: %x\n", res.Tell())
+					//					fmt.Printf("String table: %x\n", res.Tell())
 					length := int64(ytyp.SectionList[i].SizeBytes)
 					ytyp.StringTable = make([]byte, length)
 					copy(ytyp.StringTable, res.Data[res.Tell():res.Tell()+length])
