@@ -6,14 +6,17 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"math/rand"
 	"strings"
+	"fmt"
+	"unsafe"
 
 	"github.com/tgascoigne/ragekit/jenkins"
 )
 
 var dictionary = map[int]string{}
 
-type Jenkins32 uint32
+type Jenkins32 []interface{}
 
 type Files struct {
 	Files []File
@@ -33,23 +36,16 @@ func main() {
 		Files: make([]File, 0),
 	}
 
-	if _, err := os.Stat(outFile); os.IsNotExist(err) {
-		bin, err := json.Marshal(files)
-		if err != nil {
-			panic(err)
+	ext := filepath.Ext(outFile)
+	name := strings.TrimSuffix(outFile, ext)
+	fmt.Printf("in file name is %v\n", outFile)
+	for {
+		if _, err := os.Stat(outFile); err == nil {
+			outFile = fmt.Sprintf("%v_%v.%v", name, rand.Int(), ext)
+			fmt.Printf("adjusting to %v\n", outFile)
+		} else {
+			break
 		}
-
-		ioutil.WriteFile(outFile, bin, 0744)
-	}
-
-	binData, err := ioutil.ReadFile(outFile)
-	if err != nil {
-		panic(err)
-	}
-
-	err = json.Unmarshal(binData, files)
-	if err != nil {
-		panic(err)
 	}
 
 	hashFunc := jenkins.New()
@@ -64,7 +60,8 @@ func main() {
 		hash := hashFunc.Hash()
 		hashFunc.Reset()
 
-		file.Hashes[s] = Jenkins32(hash)
+		values := []interface{}{uint32(hash), *(*int32)(unsafe.Pointer(&hash)), fmt.Sprintf("0x%x", hash)}
+		file.Hashes[s] = values
 	}
 
 	addHash(fileName)
@@ -80,7 +77,7 @@ func main() {
 
 	files.Files = append(files.Files, file)
 
-	bin, err := json.Marshal(files)
+	bin, err := json.MarshalIndent(files, "", "\t")
 	if err != nil {
 		panic(err)
 	}
