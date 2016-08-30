@@ -56,3 +56,18 @@ type Vec3h [3]Float16
 type WorldCoord Vec3
 
 type WorldCoordh Vec3h
+
+type Vec4f [4]float32
+
+func (v Vec4f) MarshalJSON() ([]byte, error) {
+	var out [4]string
+	for i, f := range v {
+		if math.IsNaN(float64(f)) {
+			out[i] = fmt.Sprintf("null")
+		} else {
+			out[i] = fmt.Sprintf("%v", f)
+		}
+	}
+	result := fmt.Sprintf("[%v, %v, %v, %v]", out[0], out[1], out[2], out[3])
+	return []byte(result), nil
+}
