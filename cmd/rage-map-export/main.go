@@ -86,7 +86,7 @@ func doExport(in_file, out_file string) {
 		ymap := ymap.NewMap(in_file)
 
 		if err = ymap.Unpack(res, out_file); err != nil {
-			log.Fatal(err)
+			log.Print(err)
 		}
 
 	case strings.Contains(in_file, "typ"):
@@ -94,7 +94,7 @@ func doExport(in_file, out_file string) {
 		ytyp := ytyp.NewDefinition(in_file)
 
 		if err = ytyp.Unpack(res, out_file); err != nil {
-			log.Fatal(err)
+			log.Print(err)
 		}
 	}
 }
