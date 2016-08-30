@@ -47,6 +47,12 @@ func ReadIndex(reader io.Reader) {
 		Index = append(Index, line)
 	}
 	sort.Sort(byHash(Index))
+
+	fd, _ := os.Create("~/jenkindex.sorted")
+	defer fd.Close()
+	for _, s := range Index {
+		fmt.Fprintln(fd, s)
+	}
 }
 
 /*func ReadIndex(reader io.Reader) error {
@@ -88,14 +94,28 @@ func Lookup(j Jenkins32) string {
 		panic("index not loaded")
 	}
 
-	n := len(Index)
+	var binSearch func(s []string, hash uint32) int
+	binSearch = func(s []string, hash uint32) int {
+		n := len(s)
+		i := n / 2
+		if n == 2 {
 
-	index := sort.Search(n, func(i int) bool {
-		hash, _ := splitEntry(Index[i])
-		return hash == uint32(j)
-	})
+		}
 
-	if index == n {
+		h, _ := splitEntry(Index[i])
+		if h < hash {
+			return binSearch(s[i+1:], hash)
+		} else if h > hash {
+			return binSearch(s[:i-1], hash)
+		} else if h == hash {
+			return i
+		}
+		return -1
+	}
+
+	index := binSearch(Index, uint32(j))
+
+	if index == -1 {
 		fmt.Printf("couldn't find it'")
 		return ""
 	}
