@@ -1,7 +1,7 @@
 package bounds
 
 import (
-	"github.com/tgascoigne/ragekit/cmd/rage-modelexport/export"
+	"github.com/tgascoigne/ragekit/cmd/rage-model-export/export"
 	"github.com/tgascoigne/ragekit/resource"
 	"github.com/tgascoigne/ragekit/resource/types"
 )

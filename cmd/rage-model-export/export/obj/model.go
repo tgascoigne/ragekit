@@ -3,7 +3,7 @@ package obj
 import (
 	"fmt"
 
-	"github.com/tgascoigne/ragekit/cmd/rage-modelexport/export"
+	"github.com/tgascoigne/ragekit/cmd/rage-model-export/export"
 )
 
 func ExportModel(ctx *Context, model *export.Model) error {

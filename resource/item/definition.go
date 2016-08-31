@@ -1,11 +1,10 @@
-package ytyp
+package item
 
 import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 
-	"github.com/tgascoigne/ragekit/cmd/rage-map-export/ymap"
 	"github.com/tgascoigne/ragekit/resource"
 	"github.com/tgascoigne/ragekit/resource/types"
 )
@@ -42,7 +41,7 @@ type DefinitionHeader struct {
 type Definition struct {
 	Header      DefinitionHeader `json:"-"`
 	FileName    string
-	SectionList []ymap.SectionDef
+	SectionList []SectionDef
 	StringTable []byte
 }
 
@@ -55,29 +54,25 @@ func NewDefinition(filename string) *Definition {
 func (ytyp *Definition) Unpack(res *resource.Container, outpath string) error {
 	res.Parse(&ytyp.Header)
 
-	//	fmt.Printf("Header: %#v\n", ytyp.Header)
-
 	/* parse the section table */
 	err := res.Detour(ytyp.Header.SectionListPtr, func() error {
 		count := ytyp.Header.NumSections
-		ytyp.SectionList = make([]ymap.SectionDef, count)
+		ytyp.SectionList = make([]SectionDef, count)
 		for i := 0; i < int(count); i++ {
 			res.Parse(&ytyp.SectionList[i])
-			//			fmt.Printf("ymap.SectionDef %#v\n", ytyp.SectionList[i])
 
-			switch ytyp.SectionList[i].SectionType {
+			switch ytyp.SectionList[i].Type {
 
-			case ymap.SectionSTRINGS:
-				res.Detour(ytyp.SectionList[i].SectionPtr, func() error {
-					//					fmt.Printf("String table: %x\n", res.Tell())
-					length := int64(ytyp.SectionList[i].SizeBytes)
+			case SectionSTRINGS:
+				res.Detour(ytyp.SectionList[i].Ptr, func() error {
+					length := int64(ytyp.SectionList[i].Size)
 					ytyp.StringTable = make([]byte, length)
 					copy(ytyp.StringTable, res.Data[res.Tell():res.Tell()+length])
 					return nil
 				})
 
 			default:
-				fmt.Printf("Unknown section type: %x\n", ytyp.SectionList[i].SectionType)
+				fmt.Printf("Unknown section type: %x\n", ytyp.SectionList[i].Type)
 			}
 		}
 		return nil

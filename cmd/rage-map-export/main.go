@@ -10,10 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tgascoigne/ragekit/cmd/rage-map-export/ymap"
-	"github.com/tgascoigne/ragekit/cmd/rage-map-export/ytyp"
 	"github.com/tgascoigne/ragekit/jenkins"
 	"github.com/tgascoigne/ragekit/resource"
+	"github.com/tgascoigne/ragekit/resource/item"
 )
 
 var batch = flag.Bool("batch", false, "batch conversion")
@@ -90,7 +89,7 @@ func doExport(in_file, out_file string) {
 	switch {
 	case strings.Contains(in_file, "map"):
 		/* Unpack the map at 0x10 */
-		ymap := ymap.NewMap(in_file)
+		ymap := item.NewMap(in_file)
 
 		if err = ymap.Unpack(res, out_file); err != nil {
 			log.Print(err)
@@ -99,7 +98,7 @@ func doExport(in_file, out_file string) {
 
 	case strings.Contains(in_file, "typ"):
 		/* Unpack the map at 0x10 */
-		ytyp := ytyp.NewDefinition(in_file)
+		ytyp := item.NewDefinition(in_file)
 
 		if err = ytyp.Unpack(res, out_file); err != nil {
 			log.Print(err)

@@ -6,7 +6,7 @@ import (
 
 	xmlx "github.com/jteeuwen/go-pkg-xmlx"
 
-	"github.com/tgascoigne/ragekit/cmd/rage-modelexport/export"
+	"github.com/tgascoigne/ragekit/cmd/rage-model-export/export"
 )
 
 type Attribs map[string]interface{}

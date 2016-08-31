@@ -3,7 +3,7 @@ package bounds
 import (
 	"github.com/Jragonmiris/mathgl"
 
-	"github.com/tgascoigne/ragekit/cmd/rage-modelexport/export"
+	"github.com/tgascoigne/ragekit/cmd/rage-model-export/export"
 	"github.com/tgascoigne/ragekit/resource/types"
 )
 

@@ -1,4 +1,4 @@
-package main 
+package main
 
 import (
 	"flag"
@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/tgascoigne/ragekit/cmd/rage-modelexport/export"
-	"github.com/tgascoigne/ragekit/cmd/rage-modelexport/export/dae"
-	"github.com/tgascoigne/ragekit/cmd/rage-modelexport/export/obj"
+	"github.com/tgascoigne/ragekit/cmd/rage-model-export/export"
+	"github.com/tgascoigne/ragekit/cmd/rage-model-export/export/dae"
+	"github.com/tgascoigne/ragekit/cmd/rage-model-export/export/obj"
 	"github.com/tgascoigne/ragekit/resource"
 	"github.com/tgascoigne/ragekit/resource/bounds"
 	"github.com/tgascoigne/ragekit/resource/dictionary"
@@ -120,6 +120,8 @@ func processModel(inFile string, object *export.ModelGroup) {
 	var data []byte
 	var err error
 
+	baseName := filepath.Base(inFile)
+
 	/* Read the file */
 	if data, err = ioutil.ReadFile(inFile); err != nil {
 		panic(err)
@@ -127,11 +129,10 @@ func processModel(inFile string, object *export.ModelGroup) {
 
 	/* Unpack the container */
 	res := new(resource.Container)
-	if err = res.Unpack(data); err != nil {
+	if err = res.Unpack(data, baseName, uint32(len(data))); err != nil {
 		panic(err)
 	}
 
-	baseName := filepath.Base(inFile)
 	baseName = baseName[:strings.LastIndex(baseName, ".")]
 
 	switch {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/tgascoigne/ragekit/cmd/rage-modelexport/export"
+	"github.com/tgascoigne/ragekit/cmd/rage-model-export/export"
 )
 
 type Context struct {

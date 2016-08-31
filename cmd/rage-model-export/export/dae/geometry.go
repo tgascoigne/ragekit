@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	xmlx "github.com/jteeuwen/go-pkg-xmlx"
-	"github.com/tgascoigne/ragekit/cmd/rage-modelexport/export"
+	"github.com/tgascoigne/ragekit/cmd/rage-model-export/export"
 )
 
 func ExportGeometries(ctx *Context, model *export.Model) error {
