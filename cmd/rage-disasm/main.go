@@ -8,8 +8,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/tgascoigne/ragekit/cmd/rage-disasm/script"
 	"github.com/tgascoigne/ragekit/resource"
+	"github.com/tgascoigne/ragekit/resource/script"
 )
 
 func main() {
