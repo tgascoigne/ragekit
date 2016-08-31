@@ -62,10 +62,10 @@ func Lookup(j Jenkins32) string {
 
 		h, _ := splitEntry(s[i])
 		if h < hash {
-			offset = offset + i + 1
-			return binSearch(s[i+1:], offset, hash)
+			offset = offset + i
+			return binSearch(s[i:], offset, hash)
 		} else if h > hash {
-			return binSearch(s[:i-1], offset, hash)
+			return binSearch(s[:i], offset, hash)
 		} else if h == hash {
 			return offset + i
 		}

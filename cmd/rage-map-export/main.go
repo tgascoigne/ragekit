@@ -58,6 +58,12 @@ func doExport(in_file, out_file string) {
 	var data []byte
 	var err error
 
+	defer func() {
+		if err := recover(); err != nil {
+			log.Print(err)
+		}
+	}()
+
 	log.Printf("Exporting %v\n", in_file)
 
 	if data, err = ioutil.ReadFile(in_file); err != nil {
@@ -77,7 +83,8 @@ func doExport(in_file, out_file string) {
 	/* Unpack the container */
 	res := new(resource.Container)
 	if err = res.Unpack(data, path.Base(in_file), uint32(len(data))); err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return
 	}
 
 	switch {
@@ -87,6 +94,7 @@ func doExport(in_file, out_file string) {
 
 		if err = ymap.Unpack(res, out_file); err != nil {
 			log.Print(err)
+			return
 		}
 
 	case strings.Contains(in_file, "typ"):
@@ -95,6 +103,7 @@ func doExport(in_file, out_file string) {
 
 		if err = ytyp.Unpack(res, out_file); err != nil {
 			log.Print(err)
+			return
 		}
 	}
 }
