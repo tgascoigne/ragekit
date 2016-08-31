@@ -56,7 +56,7 @@ func Lookup(j Jenkins32) string {
 	binSearch = func(s []string, offset int, hash uint32) int {
 		n := len(s)
 		i := n / 2
-		if n == 0 {
+		if n == 0 || i == 0 {
 			return -1
 		}
 
