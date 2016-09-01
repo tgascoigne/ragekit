@@ -1,8 +1,12 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
+	"unsafe"
+
+	"github.com/tgascoigne/ragekit/jenkins"
 )
 
 type Ptr32 uint32
@@ -17,6 +21,33 @@ func (p Ptr32) Partition() uint32 {
 
 func (p Ptr32) PartitionOffset() uint32 {
 	return (uint32(p) & 0xFFFFFF)
+}
+
+func (p Ptr32) String() string {
+	return fmt.Sprintf("%x (partition %x)", p.PartitionOffset(), p.Partition())
+}
+
+func (p Ptr32) MarshalJSON() ([]byte, error) {
+	result := fmt.Sprintf("\"%v\"", p.String())
+	return []byte(result), nil
+}
+
+type FixedString [64]byte
+
+func (s FixedString) String() string {
+	result := ""
+	for _, b := range s {
+		if b == 0 {
+			break
+		}
+		result = result + string(b)
+	}
+	return result
+}
+
+func (s FixedString) MarshalJSON() ([]byte, error) {
+	result := fmt.Sprintf("\"%v\"", s.String())
+	return []byte(result), nil
 }
 
 type Float16 uint16
@@ -40,6 +71,11 @@ func (i Float16) String() string {
 	return fmt.Sprintf("%v", i.Value())
 }
 
+func (i Float16) MarshalJSON() ([]byte, error) {
+	str := fmt.Sprintf("\"%v\"", i.String())
+	return []byte(str), nil
+}
+
 type UV struct {
 	U Float16
 	V Float16
@@ -57,17 +93,33 @@ type WorldCoord Vec3
 
 type WorldCoordh Vec3h
 
-type Vec4f [4]float32
+type Float32 float32
 
-func (v Vec4f) MarshalJSON() ([]byte, error) {
-	var out [4]string
-	for i, f := range v {
-		if math.IsNaN(float64(f)) {
-			out[i] = fmt.Sprintf("null")
-		} else {
-			out[i] = fmt.Sprintf("%v", f)
-		}
+func (f Float32) MarshalJSON() ([]byte, error) {
+	var out string
+	if math.IsNaN(float64(f)) {
+		out = fmt.Sprintf("null")
+	} else {
+		out = fmt.Sprintf("%v", f)
 	}
-	result := fmt.Sprintf("[%v, %v, %v, %v]", out[0], out[1], out[2], out[3])
-	return []byte(result), nil
+	return []byte(out), nil
+}
+
+type Vec4f [4]Float32
+
+type Unknown32 uint32
+
+func (u Unknown32) MarshalJSON() ([]byte, error) {
+	if u == 0 {
+		return json.Marshal("0")
+	}
+
+	result := map[string]interface{}{
+		"hash":    jenkins.Jenkins32(u),
+		"float32": *(*Float32)(unsafe.Pointer(&u)),
+		"float16": []Float16{Float16((u >> 16) & 0xFFFF), Float16(u & 0xFFFF)},
+		"bytes":   []uint32{uint32((u >> 24) & 0xFF), uint32((u >> 16) & 0xFF), uint32((u >> 8) & 0xFF), uint32(u & 0xFF)},
+	}
+
+	return json.Marshal(result)
 }

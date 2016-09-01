@@ -22,7 +22,7 @@ type DefinitionHeader struct {
 
 	Unk8Ptr  types.Ptr32
 	Unk9     uint32
-	Unk10Ptr uint32
+	Unk10Ptr types.Ptr32
 	Unk11    uint32
 
 	SectionListPtr types.Ptr32
@@ -39,15 +39,17 @@ type DefinitionHeader struct {
 }
 
 type Definition struct {
-	Header      DefinitionHeader `json:"-"`
+	Header      DefinitionHeader
 	FileName    string
 	SectionList []SectionDef
-	StringTable []byte
+	Sections    Sections
+	StringTable StringTable
 }
 
 func NewDefinition(filename string) *Definition {
 	return &Definition{
 		FileName: filename,
+		Sections: make(Sections),
 	}
 }
 
@@ -63,16 +65,76 @@ func (ytyp *Definition) Unpack(res *resource.Container, outpath string) error {
 
 			switch ytyp.SectionList[i].Type {
 
+			case SectionUNKNOWN6:
+				res.Detour(ytyp.SectionList[i].Ptr, func() error {
+					for j := 0; j < int(ytyp.SectionList[i].Size); j += SectionSize[SectionUNKNOWN6] {
+						section := new(Unknown6Section)
+						res.Parse(section)
+						ytyp.Sections.Add(ytyp.SectionList[i].Type, section)
+					}
+					return nil
+				})
+
+			case SectionUNKNOWN7:
+				res.Detour(ytyp.SectionList[i].Ptr, func() error {
+					for j := 0; j < int(ytyp.SectionList[i].Size); j += SectionSize[SectionUNKNOWN7] {
+						section := new(Unknown7Section)
+						res.Parse(section)
+						ytyp.Sections.Add(ytyp.SectionList[i].Type, section)
+					}
+					return nil
+				})
+
+			case SectionUNKNOWN8:
+				res.Detour(ytyp.SectionList[i].Ptr, func() error {
+					for j := 0; j < int(ytyp.SectionList[i].Size); j += SectionSize[SectionUNKNOWN8] {
+						section := new(Unknown8Section)
+						res.Parse(section)
+						ytyp.Sections.Add(ytyp.SectionList[i].Type, section)
+					}
+					return nil
+				})
+
+			case SectionUNKNOWN10:
+				res.Detour(ytyp.SectionList[i].Ptr, func() error {
+					for j := 0; j < int(ytyp.SectionList[i].Size); j += SectionSize[SectionUNKNOWN10] {
+						section := new(Unknown10Section)
+						res.Parse(section)
+						ytyp.Sections.Add(ytyp.SectionList[i].Type, section)
+					}
+					return nil
+				})
+
+			case SectionTOBJ:
+				res.Detour(ytyp.SectionList[i].Ptr, func() error {
+					for j := 0; j < int(ytyp.SectionList[i].Size); j += SectionSize[SectionTOBJ] {
+						section := new(TOBJSection)
+						res.Parse(section)
+						ytyp.Sections.Add(ytyp.SectionList[i].Type, section)
+					}
+					return nil
+				})
+
+			case SectionOBJ:
+				res.Detour(ytyp.SectionList[i].Ptr, func() error {
+					for j := 0; j < int(ytyp.SectionList[i].Size); j += SectionSize[SectionOBJ] {
+						section := new(OBJSection)
+						res.Parse(section)
+						ytyp.Sections.Add(ytyp.SectionList[i].Type, section)
+					}
+					return nil
+				})
+
 			case SectionSTRINGS:
 				res.Detour(ytyp.SectionList[i].Ptr, func() error {
 					length := int64(ytyp.SectionList[i].Size)
-					ytyp.StringTable = make([]byte, length)
+					ytyp.StringTable = make(StringTable, length)
 					copy(ytyp.StringTable, res.Data[res.Tell():res.Tell()+length])
 					return nil
 				})
 
 			default:
-				fmt.Printf("Unknown section type: %x\n", ytyp.SectionList[i].Type)
+				fmt.Printf("Unknown section type: %v\n", ytyp.SectionList[i].Type)
 			}
 		}
 		return nil

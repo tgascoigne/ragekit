@@ -57,11 +57,13 @@ func doExport(in_file, out_file string) {
 	var data []byte
 	var err error
 
-	defer func() {
-		if err := recover(); err != nil {
-			log.Print(err)
-		}
-	}()
+	if *batch {
+		defer func() {
+			if err := recover(); err != nil {
+				log.Print(err)
+			}
+		}()
+	}
 
 	log.Printf("Exporting %v\n", in_file)
 
@@ -87,7 +89,8 @@ func doExport(in_file, out_file string) {
 	}
 
 	switch {
-	case strings.Contains(in_file, "map"):
+	case strings.HasSuffix(in_file, "map"):
+		fmt.Printf("parsing as map\n")
 		/* Unpack the map at 0x10 */
 		ymap := item.NewMap(in_file)
 
@@ -96,7 +99,8 @@ func doExport(in_file, out_file string) {
 			return
 		}
 
-	case strings.Contains(in_file, "typ"):
+	case strings.HasSuffix(in_file, "typ"):
+		fmt.Printf("parsing as typ\n")
 		/* Unpack the map at 0x10 */
 		ytyp := item.NewDefinition(in_file)
 
