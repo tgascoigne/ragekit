@@ -20,10 +20,10 @@ type MapHeader struct {
 	_    uint32
 	Unk6 uint32
 
-	Unk7Ptr types.Ptr32 /* an array of 0x20 structs.. 6 of them*/
-	_       uint32
-	Unk8    types.Ptr32
-	_       uint32
+	SectionListPtr2 types.Ptr32 /* an array of 0x20 structs.. 6 of them*/
+	_               uint32
+	Unk8            types.Ptr32
+	_               uint32
 
 	SectionListPtr types.Ptr32
 	_              uint32
@@ -32,20 +32,10 @@ type MapHeader struct {
 
 	Unk10               types.Ptr32
 	_                   uint32
-	Unk7Count           uint16
+	NumSections2        uint16
 	NumUnknown2Sections uint16
 	NumSections         uint16
 	UnkCount4           uint16
-}
-
-type Unk7Struct struct {
-	Unk1    uint64
-	Unk2    uint32 /* type of some kind */
-	Nil1    uint32
-	Unk3Ptr types.Ptr32
-	Nil2    uint32
-	Unk4    uint32
-	Unk5    uint32
 }
 
 type Unk3Struct struct {
@@ -53,19 +43,112 @@ type Unk3Struct struct {
 }
 
 type Map struct {
-	Header      MapHeader
-	FileName    string
-	SectionList []SectionDef
-	Sections    Sections
-	Unknown2    []Unk7Struct
-	StringTable []byte
+	Header       MapHeader
+	FileName     string
+	SectionList  []*SectionDef1
+	SectionList2 []*SectionDef2
+	Sections     Sections
+	Sections2    Sections
+	StringTable  []byte
 }
 
 func NewMap(filename string) *Map {
 	return &Map{
-		FileName: filename,
-		Sections: make(Sections),
+		FileName:     filename,
+		Sections:     make(Sections),
+		Sections2:    make(Sections),
+		SectionList:  make([]*SectionDef1, 0),
+		SectionList2: make([]*SectionDef2, 0),
 	}
+}
+
+func (ymap *Map) UnpackSection(res *resource.Container, sectionDef SectionDef, out Sections) (err error) {
+	switch sectionDef.GetType() {
+	case SectionINST:
+		res.Detour(sectionDef.GetPtr(), func() error {
+			for j := 0; j < int(sectionDef.GetSize()); j += SectionSize[SectionINST] {
+				section := new(InstSection)
+				res.Parse(section)
+				out.Add(SectionINST, section)
+			}
+			return nil
+		})
+
+	case SectionLOD:
+		res.Detour(sectionDef.GetPtr(), func() error {
+			for j := 0; j < int(sectionDef.GetSize()); j += SectionSize[SectionLOD] {
+				section := new(LODSection)
+				res.Parse(section)
+				out.Add(SectionLOD, section)
+			}
+			return nil
+		})
+
+	case SectionUNKNOWN1:
+		res.Detour(sectionDef.GetPtr(), func() error {
+			for j := 0; j < int(sectionDef.GetSize()); j += SectionSize[SectionUNKNOWN1] {
+				section := new(Unknown1Section)
+				res.Parse(section)
+				out.Add(SectionUNKNOWN1, section)
+			}
+			return nil
+		})
+
+	case SectionUNKNOWN2:
+		res.Detour(sectionDef.GetPtr(), func() error {
+			for j := 0; j < int(sectionDef.GetSize()); j += SectionSize[SectionUNKNOWN2] {
+				section := new(Unknown2Section)
+				res.Parse(section)
+				out.Add(SectionUNKNOWN2, section)
+			}
+			return nil
+		})
+
+	case SectionUNKNOWN3:
+		res.Detour(sectionDef.GetPtr(), func() error {
+			for j := 0; j < int(sectionDef.GetSize()); j += SectionSize[SectionUNKNOWN3] {
+				section := new(Unknown3Section)
+				res.Parse(section)
+				out.Add(SectionUNKNOWN3, section)
+			}
+			return nil
+		})
+
+	case SectionUNKNOWN4:
+		res.Detour(sectionDef.GetPtr(), func() error {
+			for j := 0; j < int(sectionDef.GetSize()); j += SectionSize[SectionUNKNOWN4] {
+				section := new(Unknown4Section)
+				res.Parse(section)
+				out.Add(SectionUNKNOWN4, section)
+			}
+			return nil
+		})
+
+	case SectionDefinitions:
+		res.Detour(sectionDef.GetPtr(), func() error {
+			for j := 0; j < int(sectionDef.GetSize()); j += SectionSize[SectionDefinitions] {
+				section := new(DefinitionsSection)
+				res.Parse(section)
+				out.Add(SectionDefinitions, section)
+			}
+			return nil
+		})
+
+	case SectionSTRINGS:
+		res.Detour(sectionDef.GetPtr(), func() error {
+			length := int64(sectionDef.GetSize())
+			if ymap.StringTable != nil {
+				panic("multiple string tables!")
+			}
+			ymap.StringTable = make(StringTable, length)
+			copy(ymap.StringTable, res.Data[res.Tell():res.Tell()+length])
+			return nil
+		})
+
+	default:
+		fmt.Printf("Unknown section type: %v\n", sectionDef.GetType())
+	}
+	return err
 }
 
 func (ymap *Map) Unpack(res *resource.Container, outpath string) error {
@@ -73,93 +156,15 @@ func (ymap *Map) Unpack(res *resource.Container, outpath string) error {
 
 	/* parse the section table */
 	err := res.Detour(ymap.Header.SectionListPtr, func() error {
-		count := ymap.Header.NumSections
-		ymap.SectionList = make([]SectionDef, count)
-		for i := 0; i < int(count); i++ {
-			res.Parse(&ymap.SectionList[i])
-
-			switch ymap.SectionList[i].Type {
-			case SectionINST:
-				res.Detour(ymap.SectionList[i].Ptr, func() error {
-					for j := 0; j < int(ymap.SectionList[i].Size); j += SectionSize[SectionINST] {
-						section := new(InstSection)
-						res.Parse(section)
-						ymap.Sections.Add(ymap.SectionList[i].Type, section)
-					}
-					return nil
-				})
-
-			case SectionLOD:
-				res.Detour(ymap.SectionList[i].Ptr, func() error {
-					for j := 0; j < int(ymap.SectionList[i].Size); j += SectionSize[SectionLOD] {
-						section := new(LODSection)
-						res.Parse(section)
-						ymap.Sections.Add(ymap.SectionList[i].Type, section)
-					}
-					return nil
-				})
-
-			case SectionUNKNOWN1:
-				res.Detour(ymap.SectionList[i].Ptr, func() error {
-					for j := 0; j < int(ymap.SectionList[i].Size); j += SectionSize[SectionUNKNOWN1] {
-						section := new(Unknown1Section)
-						res.Parse(section)
-						ymap.Sections.Add(ymap.SectionList[i].Type, section)
-					}
-					return nil
-				})
-
-			case SectionUNKNOWN2:
-				res.Detour(ymap.SectionList[i].Ptr, func() error {
-					for j := 0; j < int(ymap.SectionList[i].Size); j += SectionSize[SectionUNKNOWN2] {
-						section := new(Unknown2Section)
-						res.Parse(section)
-						ymap.Sections.Add(ymap.SectionList[i].Type, section)
-					}
-					return nil
-				})
-
-			case SectionUNKNOWN3:
-				res.Detour(ymap.SectionList[i].Ptr, func() error {
-					for j := 0; j < int(ymap.SectionList[i].Size); j += SectionSize[SectionUNKNOWN3] {
-						section := new(Unknown3Section)
-						res.Parse(section)
-						ymap.Sections.Add(ymap.SectionList[i].Type, section)
-					}
-					return nil
-				})
-
-			case SectionUNKNOWN4:
-				res.Detour(ymap.SectionList[i].Ptr, func() error {
-					for j := 0; j < int(ymap.SectionList[i].Size); j += SectionSize[SectionUNKNOWN4] {
-						section := new(Unknown4Section)
-						res.Parse(section)
-						ymap.Sections.Add(ymap.SectionList[i].Type, section)
-					}
-					return nil
-				})
-
-			case SectionDefinitions:
-				res.Detour(ymap.SectionList[i].Ptr, func() error {
-					for j := 0; j < int(ymap.SectionList[i].Size); j += SectionSize[SectionDefinitions] {
-						section := new(DefinitionsSection)
-						res.Parse(section)
-						ymap.Sections.Add(ymap.SectionList[i].Type, section)
-					}
-					return nil
-				})
-
-			case SectionSTRINGS:
-				res.Detour(ymap.SectionList[i].Ptr, func() error {
-					length := int64(ymap.SectionList[i].Size)
-					ymap.StringTable = make([]byte, length)
-					copy(ymap.StringTable, res.Data[res.Tell():res.Tell()+length])
-					return nil
-				})
-
-			default:
-				fmt.Printf("Unknown section type: %v\n", ymap.SectionList[i].Type)
+		for i := 0; i < int(ymap.Header.NumSections); i++ {
+			sectionDef := new(SectionDef1)
+			res.Parse(sectionDef)
+			err := ymap.UnpackSection(res, sectionDef, ymap.Sections)
+			if err != nil {
+				return err
 			}
+
+			ymap.SectionList = append(ymap.SectionList, sectionDef)
 		}
 		return nil
 	})
@@ -167,17 +172,16 @@ func (ymap *Map) Unpack(res *resource.Container, outpath string) error {
 		return err
 	}
 
-	/* parse the unknown table */
-	err = res.Detour(ymap.Header.Unk7Ptr, func() error {
-		count := ymap.Header.Unk7Count
-		ymap.Unknown2 = make([]Unk7Struct, count)
-		for i := 0; i < int(count); i++ {
-			res.Parse(&ymap.Unknown2[i])
-			res.Detour(ymap.Unknown2[i].Unk3Ptr, func() error {
-				something2 := new(Unk3Struct)
-				res.Parse(something2)
-				return nil
-			})
+	err = res.Detour(ymap.Header.SectionListPtr2, func() error {
+		for i := 0; i < int(ymap.Header.NumSections2); i++ {
+			sectionDef := new(SectionDef2)
+			res.Parse(sectionDef)
+			err := ymap.UnpackSection(res, sectionDef, ymap.Sections2)
+			if err != nil {
+				return err
+			}
+
+			ymap.SectionList2 = append(ymap.SectionList2, sectionDef)
 		}
 		return nil
 	})

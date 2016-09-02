@@ -3,6 +3,7 @@ package jenkins
 import (
 	"encoding/json"
 	"fmt"
+	"unsafe"
 )
 
 /* stolen from https://gist.github.com/Chase-san/5556547 */
@@ -17,6 +18,18 @@ func (j Jenkins32) String() string {
 		}
 	}
 	return fmt.Sprintf("%v", uint32(j))
+}
+
+func (j Jenkins32) Uint32() uint32 {
+	return uint32(j)
+}
+
+func (j Jenkins32) Int32() int32 {
+	return *(*int32)(unsafe.Pointer(&j))
+}
+
+func (j Jenkins32) Hex() string {
+	return fmt.Sprintf("0x%x", uint32(j))
 }
 
 func (j Jenkins32) MarshalJSON() ([]byte, error) {
@@ -51,6 +64,10 @@ func (h *Jenkins) Hash() uint32 {
 	hout ^= hout >> 11
 	hout += hout << 15
 	return hout
+}
+
+func (h *Jenkins) HashJenkins32() Jenkins32 {
+	return Jenkins32(h.Hash())
 }
 
 func (h *Jenkins) Reset() {

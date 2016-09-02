@@ -11,6 +11,25 @@ import (
 
 var Index []string
 
+type IndexByHash []string
+
+// Len is part of sort.Interface.
+func (idx IndexByHash) Len() int {
+	return len(idx)
+}
+
+// Swap is part of sort.Interface.
+func (idx IndexByHash) Swap(i, j int) {
+	idx[i], idx[j] = idx[j], idx[i]
+}
+
+// Less is part of sort.Interface. It is implemented by calling the "by" closure in the sorter.
+func (idx IndexByHash) Less(i, j int) bool {
+	hashI, _ := splitEntry(idx[i])
+	hashJ, _ := splitEntry(idx[j])
+	return hashI < hashJ
+}
+
 const (
 	IndexFileEnv = "RAGEKIT_HASH_INDEX"
 )

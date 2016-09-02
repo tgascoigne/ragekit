@@ -118,7 +118,9 @@ func (u Unknown32) MarshalJSON() ([]byte, error) {
 		"hash":    jenkins.Jenkins32(u),
 		"float32": *(*Float32)(unsafe.Pointer(&u)),
 		"float16": []Float16{Float16((u >> 16) & 0xFFFF), Float16(u & 0xFFFF)},
+		"uint16":  []uint16{uint16((u >> 16) & 0xFFFF), uint16(u & 0xFFFF)},
 		"bytes":   []uint32{uint32((u >> 24) & 0xFF), uint32((u >> 16) & 0xFF), uint32((u >> 8) & 0xFF), uint32(u & 0xFF)},
+		"hex":     fmt.Sprintf("0x%x", uint32(u)),
 	}
 
 	return json.Marshal(result)

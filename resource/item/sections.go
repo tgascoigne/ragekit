@@ -51,21 +51,46 @@ var SectionSize = map[SectionType]int{
 	SectionUNKNOWN10: 0xa0,
 }
 
-type SectionDef struct {
+type SectionDef interface {
+	GetType() SectionType
+	GetSize() uint32
+	GetPtr() types.Ptr32
+}
+
+type SectionDef1 struct {
 	Type SectionType
 	Size uint32
 	Ptr  types.Ptr32
 	Unk  uint32
 }
 
+func (s *SectionDef1) GetType() SectionType { return s.Type }
+func (s *SectionDef1) GetSize() uint32      { return s.Size }
+func (s *SectionDef1) GetPtr() types.Ptr32  { return s.Ptr }
+
+type SectionDef2 struct {
+	Type  SectionType
+	Unk   jenkins.Jenkins32
+	Size1 uint32
+	Nil   uint32
+	Ptr   types.Ptr32
+	Nil2  uint32
+	Size2 uint32
+	Size3 uint32
+}
+
+func (s *SectionDef2) GetType() SectionType { return s.Type }
+func (s *SectionDef2) GetSize() uint32      { return s.Size1 }
+func (s *SectionDef2) GetPtr() types.Ptr32  { return s.Ptr }
+
 type Section interface{}
 
 type InstSection struct {
-	Nil1      uint64
+	Nil1      [2]jenkins.Jenkins32
 	ModelHash jenkins.Jenkins32
 	Unk1      uint32
 
-	Unk2 [4]uint32
+	Unk2 [4]jenkins.Jenkins32
 
 	Position types.Vec4f
 
@@ -125,7 +150,13 @@ type Unknown6Section struct {
 }
 
 type Unknown7Section struct {
-	Unk1 [0x18]types.Unknown32
+	Nil1 [2]uint32
+	Hash jenkins.Jenkins32
+	Nil2 uint32
+	Unk1 types.Vec4f
+	Unk2 types.Vec4f
+	Unk3 [16]uint16
+	Unk4 [4]uint32
 }
 
 type Unknown8Section struct {
@@ -170,8 +201,9 @@ type OBJSection struct {
 }
 
 type TOBJSection struct {
-	Unk1 [4]uint32
-	Nil1 [4]uint32
+	Nil1 [2]uint32
+	Unk1 types.Unknown32
+	Nil2 [5]uint32
 
 	BoundsMin types.Vec4f
 	BoundsMax types.Vec4f
@@ -179,15 +211,16 @@ type TOBJSection struct {
 	Rotation types.Vec4f
 
 	Radius      float32
-	Unk4        uint32
+	Unk4        types.Unknown32
 	ModelHash   jenkins.Jenkins32
 	TextureHash jenkins.Jenkins32
-	Nil2        [3]uint32
-	Unk5        uint32
 	UnkHash     jenkins.Jenkins32
-	Unk6        [3]uint32
+	Nil3        [2]uint32
+	Unk6        types.Unknown32
+	UnkHash2    jenkins.Jenkins32
+	Unk7        [3]uint32
 	Nil4        [4]uint32
-	Unk7        uint32
+	Unk8        types.Unknown32
 	Nil5        [3]uint32
 }
 
