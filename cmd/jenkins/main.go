@@ -18,7 +18,7 @@ var hashFunc = jenkins.New()
 
 func main() {
 	flag.Parse()
-	var doHash func(string)
+	var doHash func(string, chan string)
 
 	if *exhaustive {
 		doHash = hashSubstrings
@@ -26,24 +26,55 @@ func main() {
 		doHash = hashString
 	}
 
+	results := make(chan string, 1024*32) // arbitrarily large
+
 	if flag.NArg() > 0 {
 		hash := flag.Arg(0)
-		doHash(hash)
+		doHash(hash, results)
+		close(results)
+
+		for str := range results {
+			fmt.Println(str)
+		}
 		os.Exit(0)
 	}
 
-	wg := sync.WaitGroup{}
+	var consGroup sync.WaitGroup
+	var prodGroup sync.WaitGroup
+	done := make(chan bool)
+
+	consGroup.Add(1)
+	go func() {
+		defer consGroup.Done()
+
+		for {
+			select {
+			case str := <-results:
+				fmt.Println(str)
+			default:
+				// buffer is empty. If done has been triggered, quit. Otherwise, loop on
+				select {
+				case <-done:
+					return
+				default:
+				}
+			}
+		}
+	}()
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
-		wg.Add(1)
+		prodGroup.Add(1)
 		go func() {
-			defer wg.Done()
-			doHash(line)
+			defer prodGroup.Done()
+			doHash(line, results)
 		}()
 	}
-	wg.Wait()
+
+	prodGroup.Wait()
+	done <- true
+	consGroup.Wait()
 }
 
 func format(j jenkins.Jenkins32) string {
@@ -62,7 +93,7 @@ func format(j jenkins.Jenkins32) string {
 	return ""
 }
 
-func hashString(s string) {
+func hashString(s string, results chan string) {
 	hashFunc.UpdateArray([]uint8(s))
 	hash := hashFunc.HashJenkins32()
 	hashFunc.Reset()
@@ -70,17 +101,17 @@ func hashString(s string) {
 	formatted := format(hash)
 
 	if *index {
-		fmt.Printf("%v:%v\n", formatted, s)
+		results <- fmt.Sprintf("%v:%v", formatted, s)
 	} else {
-		fmt.Println(formatted)
+		results <- fmt.Sprintf(formatted)
 	}
 }
 
-func hashSubstrings(s string) {
-	hashString(s)
+func hashSubstrings(s string, results chan string) {
+	hashString(s, results)
 	for i := 0; i < len(s); i++ {
 		for j := i + 1; j <= len(s); j++ {
-			hashString(s[i:j])
+			hashString(s[i:j], results)
 		}
 	}
 }
