@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sync"
 
 	"github.com/tgascoigne/ragekit/jenkins"
 )
@@ -32,18 +31,11 @@ func main() {
 		os.Exit(0)
 	}
 
-	wg := sync.WaitGroup{}
-
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			doHash(line)
-		}()
+		doHash(line)
 	}
-	wg.Wait()
 }
 
 func format(j jenkins.Jenkins32) string {
