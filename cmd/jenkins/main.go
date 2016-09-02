@@ -18,7 +18,7 @@ var hashFunc = jenkins.New()
 
 func main() {
 	flag.Parse()
-	var doHash func(string, chan string)
+	var doHash func(string)
 
 	if *exhaustive {
 		doHash = hashSubstrings
@@ -26,55 +26,24 @@ func main() {
 		doHash = hashString
 	}
 
-	results := make(chan string, 1024*32) // arbitrarily large
-
 	if flag.NArg() > 0 {
 		hash := flag.Arg(0)
-		doHash(hash, results)
-		close(results)
-
-		for str := range results {
-			fmt.Println(str)
-		}
+		doHash(hash)
 		os.Exit(0)
 	}
 
-	var consGroup sync.WaitGroup
-	var prodGroup sync.WaitGroup
-	done := make(chan bool)
-
-	consGroup.Add(1)
-	go func() {
-		defer consGroup.Done()
-
-		for {
-			select {
-			case str := <-results:
-				fmt.Println(str)
-			default:
-				// buffer is empty. If done has been triggered, quit. Otherwise, loop on
-				select {
-				case <-done:
-					return
-				default:
-				}
-			}
-		}
-	}()
+	wg := sync.WaitGroup{}
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		line := scanner.Text()
-		prodGroup.Add(1)
+		wg.Add(1)
 		go func() {
-			defer prodGroup.Done()
-			doHash(line, results)
+			defer wg.Done()
+			doHash(line)
 		}()
 	}
-
-	prodGroup.Wait()
-	done <- true
-	consGroup.Wait()
+	wg.Wait()
 }
 
 func format(j jenkins.Jenkins32) string {
@@ -93,7 +62,7 @@ func format(j jenkins.Jenkins32) string {
 	return ""
 }
 
-func hashString(s string, results chan string) {
+func hashString(s string) {
 	hashFunc.UpdateArray([]uint8(s))
 	hash := hashFunc.HashJenkins32()
 	hashFunc.Reset()
@@ -101,17 +70,17 @@ func hashString(s string, results chan string) {
 	formatted := format(hash)
 
 	if *index {
-		results <- fmt.Sprintf("%v:%v", formatted, s)
+		fmt.Printf("%v:%v\n", formatted, s)
 	} else {
-		results <- fmt.Sprintf(formatted)
+		fmt.Println(formatted)
 	}
 }
 
-func hashSubstrings(s string, results chan string) {
-	hashString(s, results)
+func hashSubstrings(s string) {
+	hashString(s)
 	for i := 0; i < len(s); i++ {
 		for j := i + 1; j <= len(s); j++ {
-			hashString(s[i:j], results)
+			hashString(s[i:j])
 		}
 	}
 }
