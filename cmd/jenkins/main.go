@@ -26,7 +26,7 @@ func main() {
 		doHash = hashString
 	}
 
-	results := make(chan string, 1024*32) // arbitrarily large
+	results := make(chan string, 256)
 
 	if flag.NArg() > 0 {
 		hash := flag.Arg(0)
