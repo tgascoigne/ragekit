@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/tgascoigne/ragekit/cmd/jenkins-brute/brutedict"
@@ -22,6 +23,7 @@ var outFileM sync.Mutex
 
 var start = flag.Int("start", 0, "set the start point")
 var end = flag.Int("end", 12, "set the end point")
+var words = flag.String("words", "", "a word dictionary")
 
 func main() {
 	flag.Parse()
@@ -61,16 +63,42 @@ func main() {
 	}
 	defer outFile.Close()
 
-	dict := brutedict.New(true, true, true, *start, *end)
+	var dictChan chan string
+
+	if *words != "" {
+		wordDict := readDict(*words)
+		dict := brutedict.CamelCase{brutedict.NewWordDict(wordDict, *start, *end)}
+		dictChan = dict.Chan()
+	} else {
+		dict := brutedict.New(true, true, true, *start, *end)
+		dictChan = dict.Chan()
+	}
 
 	var wg sync.WaitGroup
 
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
-		go worker(dict.Chan(), &wg)
+		go worker(dictChan, &wg)
 	}
 
 	wg.Wait()
+}
+
+func readDict(dict string) []string {
+	result := make([]string, 0)
+	dictFile, err := os.Open(dict)
+	if err != nil {
+		panic(err)
+	}
+	defer dictFile.Close()
+
+	scanner := bufio.NewScanner(dictFile)
+	for scanner.Scan() {
+		line := strings.ToLower(scanner.Text())
+		result = append(result, line)
+	}
+	fmt.Println("Read dictionary ", dict)
+	return result
 }
 
 func worker(s <-chan string, wg *sync.WaitGroup) {
