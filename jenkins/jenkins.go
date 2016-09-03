@@ -14,10 +14,11 @@ func (j Jenkins32) String() string {
 	if Index != nil {
 		result := Lookup(j)
 		if result != "" {
-			return result
+			_, value := splitEntry(result)
+			return value
 		}
 	}
-	return fmt.Sprintf("%v", uint32(j))
+	return fmt.Sprintf("jenkins(%v)", uint32(j))
 }
 
 func (j Jenkins32) Uint32() uint32 {

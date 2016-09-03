@@ -72,14 +72,7 @@ func doExport(in_file, out_file string) {
 	}
 
 	/* Set the architecture */
-	switch {
-	case strings.Contains(in_file, ".xmap") || strings.Contains(in_file, "xtyp"):
-		resource.SetArch(resource.Arch360)
-	case strings.Contains(in_file, ".ymap") || strings.Contains(in_file, "ytyp"):
-		resource.SetArch(resource.ArchPC)
-	default:
-		panic(fmt.Sprintf("unknown architecture, path: %v", in_file))
-	}
+	resource.SetArch(resource.ArchPC)
 
 	/* Unpack the container */
 	res := new(resource.Container)
@@ -88,25 +81,11 @@ func doExport(in_file, out_file string) {
 		return
 	}
 
-	switch {
-	case strings.HasSuffix(in_file, "map"):
-		fmt.Printf("parsing as map\n")
-		/* Unpack the map at 0x10 */
-		ymap := item.NewMap(in_file)
+	/* Unpack the map at 0x10 */
+	ytyp := item.NewDefinition(in_file)
 
-		if err = ymap.Unpack(res, out_file); err != nil {
-			log.Print(err)
-			return
-		}
-
-	case strings.HasSuffix(in_file, "typ"):
-		fmt.Printf("parsing as typ\n")
-		/* Unpack the map at 0x10 */
-		ytyp := item.NewDefinition(in_file)
-
-		if err = ytyp.Unpack(res, out_file); err != nil {
-			log.Print(err)
-			return
-		}
+	if err = ytyp.Unpack(res, out_file); err != nil {
+		log.Print(err)
+		return
 	}
 }

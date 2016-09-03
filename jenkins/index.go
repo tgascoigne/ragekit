@@ -50,8 +50,9 @@ func ReadIndexFromEnv() error {
 func ReadIndex(reader io.Reader) {
 	Index = make([]string, 0)
 	scanner := bufio.NewScanner(reader)
+	var line string
 	for scanner.Scan() {
-		line := scanner.Text()
+		line = scanner.Text()
 		Index = append(Index, line)
 	}
 }
