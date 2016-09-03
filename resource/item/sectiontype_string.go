@@ -4,25 +4,27 @@ package item
 
 import "fmt"
 
-const _SectionType_name = "SectionUNKNOWN2SectionSTRINGSSectionUNKNOWN4SectionDefinitionsSectionUNKNOWN5SectionUNKNOWN6SectionUNKNOWN7SectionUNKNOWN1SectionTOBJSectionUNKNOWN9SectionOBJSectionUNKNOWN10SectionINSTSectionLODSectionUNKNOWN8SectionUNKNOWN3"
+const _SectionType_name = "SectionUNKNOWN2SectionSTRINGSSectionUNKNOWN4SectionTypeRefSectionUNKNOWN5SectionUNKNOWN6SectionUNKNOWN11SectionUNKNOWN7SectionUNKNOWN1SectionTOBJSectionUNKNOWN9SectionOBJSectionUNKNOWN12SectionUNKNOWN10SectionINSTSectionLODSectionUNKNOWN8SectionUNKNOWN3"
 
 var _SectionType_map = map[SectionType]string{
 	7:          _SectionType_name[0:15],
 	16:         _SectionType_name[15:29],
 	21:         _SectionType_name[29:44],
-	74:         _SectionType_name[44:62],
-	366926375:  _SectionType_name[62:77],
-	637823035:  _SectionType_name[77:92],
-	975627745:  _SectionType_name[92:107],
-	1733268304: _SectionType_name[107:122],
-	1991296364: _SectionType_name[122:133],
-	2182960161: _SectionType_name[133:148],
-	2195127427: _SectionType_name[148:158],
-	3430328684: _SectionType_name[158:174],
-	3461354627: _SectionType_name[174:185],
-	3545841574: _SectionType_name[185:195],
-	3649811809: _SectionType_name[195:210],
-	3805007828: _SectionType_name[210:225],
+	74:         _SectionType_name[44:58],
+	366926375:  _SectionType_name[58:73],
+	637823035:  _SectionType_name[73:88],
+	749982947:  _SectionType_name[88:104],
+	975627745:  _SectionType_name[104:119],
+	1733268304: _SectionType_name[119:134],
+	1991296364: _SectionType_name[134:145],
+	2182960161: _SectionType_name[145:160],
+	2195127427: _SectionType_name[160:170],
+	3300062776: _SectionType_name[170:186],
+	3430328684: _SectionType_name[186:202],
+	3461354627: _SectionType_name[202:213],
+	3545841574: _SectionType_name[213:223],
+	3649811809: _SectionType_name[223:238],
+	3805007828: _SectionType_name[238:253],
 }
 
 func (i SectionType) String() string {

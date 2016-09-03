@@ -1,7 +1,9 @@
 package item
 
 import (
-	"github.com/tgascoigne/ragekit/jenkins"
+	"encoding/json"
+
+	"github.com/tgascoigne/ragekit/resource"
 	"github.com/tgascoigne/ragekit/resource/types"
 )
 
@@ -17,6 +19,7 @@ const (
 	SectionINST    SectionType = 0xce501483
 	SectionLOD     SectionType = 0xd3593fa6
 	SectionOBJ     SectionType = 0x82d6fc83
+	SectionTOBJ    SectionType = 0x76B0C56C
 	SectionSTRINGS SectionType = 0x10
 
 	SectionUNKNOWN1  SectionType = 0x674f9350
@@ -29,201 +32,59 @@ const (
 	SectionUNKNOWN8  SectionType = 0xd98bb561
 	SectionUNKNOWN9  SectionType = 0x821d5421
 	SectionUNKNOWN10 SectionType = 0xCC76A96C
-	SectionTOBJ      SectionType = 0x76B0C56C
+	SectionUNKNOWN11 SectionType = 0x2CB3D4E3
+	SectionUNKNOWN12 SectionType = 0xC4B2F638
+	SectionUNKNOWN13 SectionType = 0x33
 	// Lists hashes of item definition files to import (?)
-	SectionDefinitions SectionType = 0x4a
+	SectionTypeRef SectionType = 0x4a
 )
 
-var SectionSize = map[SectionType]int{
-	SectionINST:        0x80,
-	SectionLOD:         0x70,
-	SectionTOBJ:        0xa0,
-	SectionOBJ:         0x90,
-	SectionDefinitions: 0x4,
-
-	SectionUNKNOWN1:  0x50,
-	SectionUNKNOWN2:  0x8,
-	SectionUNKNOWN3:  0x12,
-	SectionUNKNOWN4:  0x4,
-	SectionUNKNOWN6:  0x40,
-	SectionUNKNOWN7:  0x60,
-	SectionUNKNOWN8:  0x50,
-	SectionUNKNOWN10: 0xa0,
-}
-
-type SectionDef interface {
-	GetType() SectionType
-	GetSize() uint32
-	GetPtr() types.Ptr32
-}
-
-type SectionDef1 struct {
+type SectionPtr struct {
 	Type SectionType
 	Size uint32
 	Ptr  types.Ptr32
 	Unk  uint32
 }
 
-func (s *SectionDef1) GetType() SectionType { return s.Type }
-func (s *SectionDef1) GetSize() uint32      { return s.Size }
-func (s *SectionDef1) GetPtr() types.Ptr32  { return s.Ptr }
+type Sections map[SectionType][]SectionEntry
 
-type SectionDef2 struct {
-	Type  SectionType
-	Unk   jenkins.Jenkins32
-	Size1 uint32
-	Nil   uint32
-	Ptr   types.Ptr32
-	Nil2  uint32
-	Size2 uint32
-	Size3 uint32
+func (s Sections) MarshalJSON() ([]byte, error) {
+	// The key of maps aren't serialized using MarshalJSON, so we need to convert it to a map[String]
+	m := make(map[string][]SectionEntry)
+	for k, v := range s {
+		m[k.String()] = v
+	}
+	return json.Marshal(m)
 }
 
-func (s *SectionDef2) GetType() SectionType { return s.Type }
-func (s *SectionDef2) GetSize() uint32      { return s.Size1 }
-func (s *SectionDef2) GetPtr() types.Ptr32  { return s.Ptr }
+func (s Sections) Add(typ SectionType, section SectionEntry) {
+	if _, ok := s[typ]; !ok {
+		s[typ] = make([]SectionEntry, 0)
+	}
 
-type Section interface{}
-
-type InstSection struct {
-	Nil1      [2]jenkins.Jenkins32
-	ModelHash jenkins.Jenkins32
-	Unk1      uint32
-
-	Unk2 [4]jenkins.Jenkins32
-
-	Position types.Vec4f
-
-	Unk3 types.Vec4f
-
-	Rotation types.Vec4f
-
-	Unk4     uint32
-	UnkCount uint32
-	Unk5     [2]uint32
-
-	Unk6 types.Vec4f
-
-	Unk7 types.Vec4f
+	s[typ] = append(s[typ], section)
 }
 
-type LODSection struct {
-	Nil1         uint64
-	ModelHash    jenkins.Jenkins32
-	LODModelHash jenkins.Jenkins32
-	Unk1         [4]uint32
-	Positions    [4]types.Vec4f
-	Unk4         [8]uint16
+type SectionEntry map[FieldName]FieldValue
+
+func (s SectionEntry) MarshalJSON() ([]byte, error) {
+	// The key of maps aren't serialized using MarshalJSON, so we need to convert it to a map[String]
+	m := make(map[string]FieldValue)
+	for k, v := range s {
+		m[k.String()] = v
+	}
+	return json.Marshal(m)
 }
 
-type Unknown1Section struct {
-	Nil1        uint64
-	UnkConstant uint32
-	Nil2        uint32
-	Positions   [2]types.Vec4f
-	Unk1        [4]uint32
-}
+func (s SectionEntry) UnpackFromMap(res *resource.Container, baseAddr types.Ptr32, sectionMap []SectionMapField) error {
+	for _, field := range sectionMap {
+		value, err := field.UnpackField(res, baseAddr)
+		if err != nil {
+			return err
+		}
 
-type Unknown2Section struct {
-	Bytes [0x8]uint8
-}
+		s[field.FieldName] = value
+	}
 
-type Unknown3Section struct {
-	Value [6]uint16
-}
-
-type Unknown4Section struct {
-	Value [4]uint8
-}
-
-type Unknown6Section struct {
-	Nil1      uint64
-	ModelHash jenkins.Jenkins32
-	Unk1      uint32
-
-	Position types.Vec4f
-
-	Unk3 types.Vec4f
-
-	Hash2 jenkins.Jenkins32
-	Nil2  [3]uint32
-}
-
-type Unknown7Section struct {
-	Nil1 [2]uint32
-	Hash jenkins.Jenkins32
-	Nil2 uint32
-	Unk1 types.Vec4f
-	Unk2 types.Vec4f
-	Unk3 [16]uint16
-	Unk4 [4]uint32
-}
-
-type Unknown8Section struct {
-	Nil1   [6]uint32
-	Counts [8]uint16
-	Hash   jenkins.Jenkins32
-	Nil2   [9]uint32
-}
-
-type Unknown10Section struct {
-	Nil1   [4]uint32
-	Unk1   types.Vec4f
-	Unk2   types.Vec4f
-	Unk3   [2]uint32
-	Hash   jenkins.Jenkins32
-	Nil2   byte
-	String types.FixedString
-	Nil3   [3]byte
-	Unk4   [4]jenkins.Jenkins32
-	Unk5   types.Vec4f
-}
-
-type OBJSection struct {
-	Unk1 [4]uint32
-	Nil1 [4]uint32
-
-	BoundsMin types.Vec4f
-	BoundsMax types.Vec4f
-
-	Rotation types.Vec4f
-
-	Radius      float32
-	Unk4        uint32
-	ModelHash   jenkins.Jenkins32
-	TextureHash jenkins.Jenkins32
-	Nil2        [2]uint32
-	UnkHash     jenkins.Jenkins32
-	Unk5        uint32
-	Model2Hash  jenkins.Jenkins32
-	Nil3        [3]uint32
-	Nil4        [4]jenkins.Jenkins32
-}
-
-type TOBJSection struct {
-	Nil1 [2]uint32
-	Unk1 types.Unknown32
-	Nil2 [5]uint32
-
-	BoundsMin types.Vec4f
-	BoundsMax types.Vec4f
-
-	Rotation types.Vec4f
-
-	Radius      float32
-	Unk4        types.Unknown32
-	ModelHash   jenkins.Jenkins32
-	TextureHash jenkins.Jenkins32
-	UnkHash     jenkins.Jenkins32
-	Nil3        [2]uint32
-	Unk6        types.Unknown32
-	UnkHash2    jenkins.Jenkins32
-	Unk7        [3]uint32
-	Nil4        [4]uint32
-	Unk8        types.Unknown32
-	Nil5        [3]uint32
-}
-
-type DefinitionsSection struct {
-	Hash jenkins.Jenkins32
+	return nil
 }
