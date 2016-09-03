@@ -10,13 +10,13 @@ import (
 )
 
 type ItemDefinition struct {
-	Header         Header
+	Header         Header `json:"-""`
 	FileName       string
-	StringTable    StringTable
+	StringTable    StringTable `json:"-""`
 	Sections       Sections
-	SectionMapPtrs map[SectionType]SectionMapPtr
-	SectionPtrs    []SectionPtr
-	SectionMaps    map[SectionType][]SectionMapField
+	SectionMapPtrs map[SectionType]SectionMapPtr     `json:"-""`
+	SectionPtrs    []SectionPtr                      `json:"-""`
+	SectionMaps    map[SectionType][]SectionMapField `json:"-""`
 }
 
 func NewDefinition(filename string) *ItemDefinition {
