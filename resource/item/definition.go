@@ -14,7 +14,7 @@ type ItemDefinition struct {
 	FileName       string
 	StringTable    StringTable `json:"-""`
 	Sections       Sections
-	SectionMapPtrs map[SectionType]SectionMapPtr     `json:"-""`
+	SectionMapPtrs map[SectionType]SectionMapPtr
 	SectionPtrs    []SectionPtr                      `json:"-""`
 	SectionMaps    map[SectionType][]SectionMapField `json:"-""`
 }
