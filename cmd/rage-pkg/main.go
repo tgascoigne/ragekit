@@ -18,9 +18,8 @@ func main() {
 	log.SetFlags(0)
 
 	in_file := flag.Arg(0)
-	out_file := flag.Arg(1)
 
-	doExport(in_file, out_file)
+	doExport(in_file)
 }
 
 func uniquePath(dir, base, ext string) string {
@@ -32,7 +31,7 @@ func uniquePath(dir, base, ext string) string {
 	}
 }
 
-func doExport(in_file, out_file string) {
+func doExport(in_file string) {
 	var data []byte
 	var err error
 

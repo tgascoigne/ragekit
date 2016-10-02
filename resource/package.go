@@ -1,9 +1,6 @@
 package resource
 
 import (
-	"fmt"
-	"io/ioutil"
-
 	"github.com/tgascoigne/ragekit/resource/crypto"
 	"github.com/tgascoigne/ragekit/resource/types"
 	"github.com/tgascoigne/ragekit/util/stack"
@@ -82,10 +79,7 @@ func (pkg *Package) Unpack(data []byte, filename string, filesize uint32) error 
 		pkg.entries[i] = entry
 	}
 
-	outpath := "dump.rpf"
-	fmt.Printf("Writing %v\n", outpath)
-	err = ioutil.WriteFile(outpath, pkg.Data, 0744)
-	return err
+	return nil
 }
 
 func (pkg *Package) Root() PackageDirectory {
