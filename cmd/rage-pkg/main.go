@@ -84,6 +84,7 @@ func unpackDir(pkg *resource.Package, dir resource.PackageDirectory, path []stri
 func unpackFile(pkg *resource.Package, file resource.PackageFile, path []string) {
 	newPathParts := append(path, file.Name(pkg))
 	newPath := filepath.Join(newPathParts...)
+	//	fmt.Printf("unpacking %v\n%#v\n", newPath, file)
 	data := file.Data(pkg)
 	err := ioutil.WriteFile(filepath.Join(newPath), data, 0777)
 	if err != nil {

@@ -221,20 +221,10 @@ func (pkg *Package) decryptBlocks(index, count, uncompressedLength uint32, filen
 
 func (pkg *Package) readBlocks(index, count uint32) []byte {
 	blockOffset := types.Ptr32(BlockSize * index)
-	blocks := make([]byte, 0)
+	blocks := make([]byte, count)
 
 	err := pkg.Detour(blockOffset, func() error {
-		for i := 0; i < int(count); {
-			block := make([]byte, BlockSize)
-			pkg.Parse(block)
-			blocks = append(blocks, block...)
-
-			if len(block) == 0 {
-				panic("out of blocks")
-			}
-
-			i += len(block)
-		}
+		pkg.Parse(blocks)
 		return nil
 	})
 
@@ -242,7 +232,7 @@ func (pkg *Package) readBlocks(index, count uint32) []byte {
 		panic(err)
 	}
 
-	return blocks[:count]
+	return blocks
 }
 
 func (pkg *Package) parseEntry() (PackageNode, error) {
