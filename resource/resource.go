@@ -16,10 +16,9 @@ import (
 	"github.com/tgascoigne/ragekit/util/stack"
 )
 
-
 const (
-	resMagic1  = 0x52534337
-	resMagic2  = 0x52534307
+	resMagic1 = 0x52534337
+	resMagic2 = 0x52534307
 	baseSize  = 0x2000
 	stringMax = 256
 )
@@ -33,22 +32,25 @@ var ErrInvalidString error = errors.New("invalid string")
 
 type ContainerHeader struct {
 	Magic    uint32
-	Type uint8
-	_ [3]uint8
+	Version  uint32
 	SysFlags uint32
 	GfxFlags uint32
 }
 
+func (c ContainerHeader) Type() uint8 {
+	return uint8(c.Version & 0xFF)
+}
+
 const (
-	ResourceBN = 0x2b // flate
-	ResourceMap = 0x02 // flate
-	ResourceScript = 0x0a // ng + flate
-	ResourceTexture = 0x0d // flate
+	ResourceBN       = 0x2b // flate
+	ResourceMap      = 0x02 // flate
+	ResourceScript   = 0x0a // ng + flate
+	ResourceTexture  = 0x0d // flate
 	ResourceDrawable = 0xa5 // flate
-	ResourceFrag = 0xa2 // flate
-	ResourceClip = 0x2e // flate
-	ResourceED = 0x19 // flate
-	ResourceVR = 0x01
+	ResourceFrag     = 0xa2 // flate
+	ResourceClip     = 0x2e // flate
+	ResourceED       = 0x19 // flate
+	ResourceVR       = 0x01
 )
 
 type Container struct {
@@ -144,7 +146,7 @@ func (res *Container) Unpack(data []byte, filename string, filesize uint32) erro
 
 	ctx := crypto.NewContext(keys)
 
-	if res.Header.Type == ResourceScript {
+	if res.Header.Type() == ResourceScript {
 		err = res.DecryptNG(ctx, filename, filesize)
 		if err != nil {
 			fmt.Printf("NG decrypt failed: %v\n", err)

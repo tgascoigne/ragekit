@@ -69,6 +69,6 @@ func LoadKeysFromDir(dir string) (Keys, error) {
 
 func (k Keys) NgKeyForFile(filename string, length uint32) []byte {
 	hash := CalculateHash(k, filename)
-	keyIdx := (hash + (length + 0x10) + (101 - 40)) % 0x65
+	keyIdx := (hash + (length) + (101 - 40)) % 0x65
 	return k.ngKeys[keyIdx]
 }

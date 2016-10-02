@@ -32,6 +32,12 @@ func (p Ptr32) MarshalJSON() ([]byte, error) {
 	return []byte(result), nil
 }
 
+type Uint24 [3]byte
+
+func (u Uint24) Uint32() uint32 {
+	return (uint32(u[2]) << 16) + (uint32(u[1]) << 8) + (uint32(u[0]) << 0)
+}
+
 type FixedString [64]byte
 
 func (s FixedString) String() string {
