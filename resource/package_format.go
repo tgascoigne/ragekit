@@ -396,7 +396,7 @@ func (pkg *Package) Parse(dest interface{}) {
 	default:
 		err = binary.Read(pkg, nativeEndian, dest)
 
-		if err != nil && err != io.EOF {
+		if err != nil {
 			panic(err)
 		}
 	}
@@ -416,7 +416,7 @@ func (pkg *Package) Read(p []byte) (int, error) {
 	var read int64
 	toRead := int64(len(p))
 
-	if pkg.position+toRead >= pkg.size {
+	if pkg.position+toRead > pkg.size {
 		return 0, io.EOF
 	}
 
