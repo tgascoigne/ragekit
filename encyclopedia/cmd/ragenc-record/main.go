@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"sync"
@@ -124,7 +125,7 @@ func handlePlacement(path string) {
 	err = graphFunc()
 	if err != nil {
 		fmt.Printf("trying again...")
-		time.Sleep(5 * time.Second)
+		time.Sleep(time.Duration(rand.Intn(30)+5) * time.Second)
 		err = graphFunc()
 		if err != nil {
 			panic(err)

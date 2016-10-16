@@ -20,7 +20,7 @@ type DbConn struct {
 var DB dbConfig
 
 func ConnectDb(addr string) {
-	pool, err := bolt.NewDriverPool(addr, 30)
+	pool, err := bolt.NewDriverPool(addr, 10)
 	if err != nil {
 		panic(err)
 	}
