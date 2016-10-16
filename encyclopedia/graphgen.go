@@ -51,16 +51,12 @@ func (c *DbConn) Close() {
 
 func (c *DbConn) GraphNode(node Node) int64 {
 	//CREATE (f:FOO {a: {a}, b: {b}, c: {c}, d: {d}, e: {e}, f: {f}, g: {g}, h: {h}})-[b:BAR]->(c:BAZ)
-	stmt := fmt.Sprintf("MERGE (n:%v {%v}) RETURN ID(n)", node.Label(), createPropertyList(node.Properties()))
+	properties := typeConvPropertyValues(node.Properties())
+	propsFmt, propsList := createPropertyList(properties)
+	stmt := fmt.Sprintf("MERGE (n:%v {%v}) RETURN ID(n)", node.Label(), propsFmt)
 
 	//fmt.Printf("node is %#v\n", node)
 	//fmt.Printf("statement is %v\n", stmt)
-
-	properties := typeConvPropertyValues(node.Properties())
-	propsList := make([]interface{}, 0)
-	for _, v := range properties {
-		propsList = append(propsList, v)
-	}
 
 	conn := c.conn
 	rows, err := conn.Query(stmt, propsList...)
@@ -135,14 +131,16 @@ func typeConvPropertyValue(value interface{}) interface{} {
 	}
 }
 
-func createPropertyList(props map[string]interface{}) string {
+func createPropertyList(props map[string]interface{}) (string, []interface{}) {
 	results := make([]string, 0)
 
+	values := make([]interface{}, 0)
 	i := 0
-	for name, _ := range props {
+	for name, v := range props {
 		results = append(results, fmt.Sprintf("%v: {%v}", name, i))
+		values = append(values, v)
 		i++
 	}
 
-	return strings.Join(results, ", ")
+	return strings.Join(results, ", "), values
 }
