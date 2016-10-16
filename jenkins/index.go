@@ -10,6 +10,7 @@ import (
 )
 
 var Index []string
+var cache = map[Jenkins32]string{}
 
 type IndexByHash []string
 
@@ -68,6 +69,10 @@ func splitEntry(s string) (uint32, string) {
 }
 
 func Lookup(j Jenkins32) string {
+	if result, ok := cache[j]; ok {
+		return result
+	}
+
 	if Index == nil {
 		panic("index not loaded")
 	}
@@ -98,5 +103,6 @@ func Lookup(j Jenkins32) string {
 		return ""
 	}
 
+	cache[j] = Index[index]
 	return Index[index]
 }

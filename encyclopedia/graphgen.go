@@ -3,53 +3,62 @@ package encyclopedia
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	"github.com/tgascoigne/ragekit/jenkins"
 	"github.com/tgascoigne/ragekit/resource/types"
 )
 
-type dbConn struct {
-	driver bolt.Driver
-	conn   bolt.Conn
-	lock   sync.Mutex
+type dbConfig struct {
+	driver bolt.DriverPool
 }
 
-var DB dbConn
+type DbConn struct {
+	conn bolt.Conn
+}
+
+var DB dbConfig
 
 func ConnectDb(addr string) {
-	DB = dbConn{
-		driver: bolt.NewDriver(),
-	}
-
-	DB.lock.Lock()
-	defer DB.lock.Unlock()
-	driver := DB.driver
-
-	var err error
-	DB.conn, err = driver.OpenNeo("bolt://neo4j:jetpack@mimas:7687")
+	pool, err := bolt.NewDriverPool(addr, 30)
 	if err != nil {
 		panic(err)
 	}
-}
-
-func Graph(nodes []Node) {
-	DB.lock.Lock()
-	defer DB.lock.Unlock()
-
-	for _, node := range nodes {
-		GraphNode(node)
+	DB = dbConfig{
+		driver: pool,
 	}
 }
 
-func GraphNode(node Node) {
+func NewConn() *DbConn {
+	conn, err := DB.driver.OpenPool()
+	if err != nil {
+		panic(err)
+	}
+
+	return &DbConn{
+		conn: conn,
+	}
+}
+
+func (c *DbConn) Graph(nodes []Node) {
+	for _, node := range nodes {
+		c.GraphNode(node)
+	}
+}
+
+func (c *DbConn) Close() {
+	c.conn.Close()
+}
+
+func (c *DbConn) GraphNode(node Node) int64 {
 	//CREATE (f:FOO {a: {a}, b: {b}, c: {c}, d: {d}, e: {e}, f: {f}, g: {g}, h: {h}})-[b:BAR]->(c:BAZ)
 	stmt := fmt.Sprintf("MERGE (n:%v {%v}) RETURN ID(n)", node.Label(), createPropertyList(node.Properties()))
 
 	//fmt.Printf("node is %#v\n", node)
 	//fmt.Printf("statement is %v\n", stmt)
-	conn := DB.conn
+
+	conn := c.conn
+
 	result, err := conn.QueryNeo(stmt, typeConvPropertyValues(node.Properties()))
 	if err != nil {
 		panic(err)
@@ -63,17 +72,19 @@ func GraphNode(node Node) {
 	for name, value := range node.Properties() {
 		if value, ok := value.(jenkins.Jenkins32); ok && value != jenkins.Jenkins32(0) {
 			asset := Asset{value}
-			GraphNode(asset)
-			GraphRelationship(nodeId, asset, ":"+name)
+			assetId := c.GraphNode(asset)
+			c.GraphRelationship(nodeId, assetId, ":"+name)
 		}
 	}
+
+	return nodeId
 }
 
-func nodeId(node Node) int64 {
+func (c *DbConn) nodeId(node Node) int64 {
 	stmt := fmt.Sprintf("MATCH (n:%v {%v}) RETURN ID(n)", node.Label(), createPropertyList(node.Properties()))
 	params := typeConvPropertyValues(node.Properties())
 
-	result, err := DB.conn.QueryNeo(stmt, params)
+	result, err := c.conn.QueryNeo(stmt, params)
 	if err != nil {
 		panic(err)
 	}
@@ -86,14 +97,12 @@ func nodeId(node Node) int64 {
 	return id
 }
 
-func GraphRelationship(fromId int64, to Node, label string) {
-	toId := nodeId(to)
-
+func (c *DbConn) GraphRelationship(fromId, toId int64, label string) {
 	stmt := fmt.Sprintf(`MATCH (from) WHERE ID(from) = %v
 MATCH (to) WHERE ID(to) = %v
 CREATE (from)-[%v]->(to)`, fromId, toId, label)
 
-	_, err := DB.conn.ExecNeo(stmt, nil)
+	_, err := c.conn.ExecNeo(stmt, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -138,8 +147,4 @@ func createPropertyList(props map[string]interface{}) string {
 	}
 
 	return strings.Join(results, ", ")
-}
-
-func CloseDb() {
-	DB.conn.Close()
 }
