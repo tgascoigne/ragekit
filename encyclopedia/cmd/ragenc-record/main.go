@@ -106,7 +106,26 @@ func handlePlacement(path string) {
 		}
 	}
 
-	conn := encyclopedia.NewConn()
-	defer conn.Close()
-	conn.Graph(nodes)
+	var graphFunc func() error
+	graphFunc = func() (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				err = r.(error)
+			}
+		}()
+
+		conn := encyclopedia.NewConn()
+		defer conn.Close()
+		conn.Graph(nodes)
+		return nil
+	}
+
+	err = graphFunc()
+	if err != nil {
+		fmt.Printf("trying again...")
+		err = graphFunc()
+		if err != nil {
+			panic(err)
+		}
+	}
 }
