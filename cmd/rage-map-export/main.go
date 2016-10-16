@@ -84,7 +84,12 @@ func doExport(in_file, out_file string) {
 	/* Unpack the map at 0x10 */
 	ytyp := item.NewDefinition(in_file)
 
-	if err = ytyp.Unpack(res, out_file); err != nil {
+	if err = ytyp.Unpack(res); err != nil {
+		log.Print(err)
+		return
+	}
+
+	if err = ytyp.Dump(out_file); err != nil {
 		log.Print(err)
 		return
 	}
