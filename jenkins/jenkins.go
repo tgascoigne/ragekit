@@ -9,7 +9,7 @@ import (
 
 /* stolen from https://gist.github.com/Chase-san/5556547 */
 
-var propNameRegexp = regexp.MustCompile("[a-zA-Z0-9_-]+")
+var propNameRegexp = regexp.MustCompile("^[a-zA-Z0-9_-]+$")
 
 type Jenkins32 uint32
 
