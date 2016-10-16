@@ -47,8 +47,8 @@ func GraphNode(node Node) {
 	//CREATE (f:FOO {a: {a}, b: {b}, c: {c}, d: {d}, e: {e}, f: {f}, g: {g}, h: {h}})-[b:BAR]->(c:BAZ)
 	stmt := fmt.Sprintf("MERGE (n:%v {%v}) RETURN ID(n)", node.Label(), createPropertyList(node.Properties()))
 
-	fmt.Printf("node is %#v\n", node)
-	fmt.Printf("statement is %v\n", stmt)
+	//fmt.Printf("node is %#v\n", node)
+	//fmt.Printf("statement is %v\n", stmt)
 	conn := DB.conn
 	result, err := conn.QueryNeo(stmt, typeConvPropertyValues(node.Properties()))
 	if err != nil {
