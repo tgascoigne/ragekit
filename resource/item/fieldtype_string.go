@@ -9,6 +9,8 @@ const (
 	_FieldType_name_1 = "FieldFloat32"
 	_FieldType_name_2 = "FieldVec4f"
 	_FieldType_name_3 = "FieldJenkins"
+	_FieldType_name_4 = "FieldUnknown2"
+	_FieldType_name_5 = "FieldUnknown1"
 )
 
 var (
@@ -16,6 +18,8 @@ var (
 	_FieldType_index_1 = [...]uint8{0, 12}
 	_FieldType_index_2 = [...]uint8{0, 10}
 	_FieldType_index_3 = [...]uint8{0, 12}
+	_FieldType_index_4 = [...]uint8{0, 13}
+	_FieldType_index_5 = [...]uint8{0, 13}
 )
 
 func (i FieldType) String() string {
@@ -29,6 +33,10 @@ func (i FieldType) String() string {
 		return _FieldType_name_2
 	case i == 74:
 		return _FieldType_name_3
+	case i == 82:
+		return _FieldType_name_4
+	case i == 98:
+		return _FieldType_name_5
 	default:
 		return fmt.Sprintf("FieldType(%d)", i)
 	}

@@ -29,7 +29,7 @@ func NewDefinition(filename string) *ItemDefinition {
 	}
 }
 
-func (typ *ItemDefinition) Unpack(res *resource.Container, outpath string) error {
+func (typ *ItemDefinition) Unpack(res *resource.Container) error {
 	res.Parse(&typ.Header)
 
 	err := res.Detour(typ.Header.SectionDefPtr, func() error {
@@ -89,13 +89,17 @@ func (typ *ItemDefinition) Unpack(res *resource.Container, outpath string) error
 		}
 	}
 
+	return nil
+}
+
+func (typ *ItemDefinition) Dump(path string) error {
 	data, err := json.MarshalIndent(typ, "", "\t")
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Writing %v\n", outpath)
-	err = ioutil.WriteFile(outpath, data, 0744)
+	fmt.Printf("Writing %v\n", path)
+	err = ioutil.WriteFile(path, data, 0744)
 	if err != nil {
 		return err
 	}

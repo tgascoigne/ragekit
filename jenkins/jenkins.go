@@ -3,10 +3,13 @@ package jenkins
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"unsafe"
 )
 
 /* stolen from https://gist.github.com/Chase-san/5556547 */
+
+var propNameRegexp = regexp.MustCompile("[a-zA-Z0-9_-]+")
 
 type Jenkins32 uint32
 
@@ -19,6 +22,20 @@ func (j Jenkins32) String() string {
 		}
 	}
 	return fmt.Sprintf("jenkins(%v)", uint32(j))
+}
+
+func (j Jenkins32) AsPropertyName() string {
+	if Index != nil {
+		result := Lookup(j)
+		if result != "" {
+			_, value := splitEntry(result)
+			if propNameRegexp.MatchString(value) {
+				// name must be alphanumeric, otherwise just return unk
+				return value
+			}
+		}
+	}
+	return fmt.Sprintf("unk_%v", uint32(j))
 }
 
 func (j Jenkins32) Uint32() uint32 {
