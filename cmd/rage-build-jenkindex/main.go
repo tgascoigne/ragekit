@@ -3,12 +3,10 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"os"
 	"path/filepath"
-	"math/rand"
 	"strings"
-	"fmt"
 	"unsafe"
 
 	"github.com/tgascoigne/ragekit/jenkins"
@@ -27,6 +25,15 @@ type File struct {
 	Hashes   map[string]Jenkins32
 }
 
+func uniquePath(dir, base, ext string) string {
+	for i := 0; ; i++ {
+		path := fmt.Sprintf("%v/%v_%v.%v", dir, base, i, ext)
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			return path
+		}
+	}
+}
+
 func main() {
 	fileName := os.Args[1]
 
@@ -36,17 +43,12 @@ func main() {
 		Files: make([]File, 0),
 	}
 
-	ext := filepath.Ext(outFile)
-	name := strings.TrimSuffix(outFile, ext)
-	fmt.Printf("in file name is %v\n", outFile)
-	for {
-		if _, err := os.Stat(outFile); err == nil {
-			outFile = fmt.Sprintf("%v_%v.%v", name, rand.Int(), ext)
-			fmt.Printf("adjusting to %v\n", outFile)
-		} else {
-			break
-		}
-	}
+	dirname := filepath.Dir(outFile)
+	basename := filepath.Base(outFile)
+	ext := filepath.Ext(basename)
+	name := strings.TrimSuffix(basename, ext)
+	ext = ext[1:]
+	outFile = uniquePath(dirname, name, ext)
 
 	hashFunc := jenkins.New()
 
@@ -64,10 +66,8 @@ func main() {
 		file.Hashes[s] = values
 	}
 
-	addHash(fileName)
-	basename := filepath.Base(fileName)
-	addHash(basename)
-	addHash(strings.TrimSuffix(basename, filepath.Ext(basename)))
+	addHash(basename) // name with ext
+	addHash(name)     // name without ext
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
@@ -82,5 +82,20 @@ func main() {
 		panic(err)
 	}
 
-	ioutil.WriteFile(outFile, bin, 0744)
+	//	gzipFile := outFile + ".gz"
+	//	fmt.Printf("writing %v\n", outFile)
+	outWriter, err := os.OpenFile(outFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0744)
+	if err != nil {
+		panic(err)
+	}
+	defer outWriter.Close()
+
+	//	gzipWriter := gzip.NewWriter(outWriter)
+	//	defer gzipWriter.Close()
+
+	//	gzipWriter.Name = outFile
+	//	gzipWriter.Write(bin)
+	//	gzipWriter.Flush()
+
+	outWriter.Write(bin)
 }
