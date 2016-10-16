@@ -31,7 +31,7 @@ func main() {
 
 	path := flag.Arg(0)
 
-	encyclopedia.ConnectDb("bolt://neo4j:jetpack@mimas:7687")
+	encyclopedia.ConnectDb("bolt://neo4j:jetpack@localhost:7687")
 
 	wg := new(sync.WaitGroup)
 
@@ -71,10 +71,6 @@ func record(path string) {
 		handler(path)
 		return
 	}
-}
-
-func refreshConn() {
-	encyclopedia.ConnectDb("bolt://neo4j:jetpack@mimas:7687")
 }
 
 func handlePlacement(path string) {
@@ -127,7 +123,6 @@ func handlePlacement(path string) {
 	err = graphFunc()
 	if err != nil {
 		fmt.Printf("trying again...\n")
-		refreshConn()
 		time.Sleep(time.Duration(rand.Intn(30)+10) * time.Second)
 		err = graphFunc()
 		if err != nil {

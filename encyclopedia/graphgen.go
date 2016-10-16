@@ -3,6 +3,7 @@ package encyclopedia
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	"github.com/tgascoigne/ragekit/jenkins"
@@ -10,7 +11,8 @@ import (
 )
 
 type dbConfig struct {
-	driver bolt.DriverPool
+	driver bolt.Driver
+	addr   string
 }
 
 type DbConn struct {
@@ -18,19 +20,20 @@ type DbConn struct {
 }
 
 var DB dbConfig
+var dbLock sync.Mutex
 
 func ConnectDb(addr string) {
-	pool, err := bolt.NewDriverPool(addr, 10)
-	if err != nil {
-		panic(err)
-	}
+	pool := bolt.NewDriver()
+
 	DB = dbConfig{
 		driver: pool,
+		addr:   addr,
 	}
 }
 
 func NewConn() *DbConn {
-	conn, err := DB.driver.OpenPool()
+	dbLock.Lock()
+	conn, err := DB.driver.OpenNeo(DB.addr)
 	if err != nil {
 		panic(err)
 	}
@@ -48,6 +51,7 @@ func (c *DbConn) Graph(nodes []Node) {
 
 func (c *DbConn) Close() {
 	c.conn.Close()
+	dbLock.Unlock()
 }
 
 func (c *DbConn) GraphNode(node Node) int64 {
