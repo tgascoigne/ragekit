@@ -31,7 +31,7 @@ func main() {
 
 	path := flag.Arg(0)
 
-	encyclopedia.ConnectDb("bolt://neo4j:jetpack@mimas:7687")
+	encyclopedia.ConnectDb("bolt://neo4j:jetpack@localhost:7687")
 
 	wg := new(sync.WaitGroup)
 
@@ -74,7 +74,7 @@ func record(path string) {
 }
 
 func refreshConn() {
-	encyclopedia.ConnectDb("bolt://neo4j:jetpack@mimas:7687")
+	encyclopedia.ConnectDb("bolt://neo4j:jetpack@localhost:7687")
 }
 
 func handlePlacement(path string) {
