@@ -49,7 +49,7 @@ func main() {
 
 				defer func() {
 					if err := recover(); err != nil {
-						fmt.Printf("error recording %v: %v", path, err)
+						fmt.Printf("error recording %v: %v\n", path, err)
 					}
 				}()
 
@@ -71,8 +71,10 @@ func record(path string) {
 		handler(path)
 		return
 	}
+}
 
-	panic("todo: generic handler")
+func refreshConn() {
+	encyclopedia.ConnectDb("bolt://neo4j:jetpack@mimas:7687")
 }
 
 func handlePlacement(path string) {
@@ -124,8 +126,9 @@ func handlePlacement(path string) {
 
 	err = graphFunc()
 	if err != nil {
-		fmt.Printf("trying again...")
-		time.Sleep(time.Duration(rand.Intn(30)+5) * time.Second)
+		fmt.Printf("trying again...\n")
+		refreshConn()
+		time.Sleep(time.Duration(rand.Intn(30)+10) * time.Second)
 		err = graphFunc()
 		if err != nil {
 			panic(err)
