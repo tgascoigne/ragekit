@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/rand"
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/tgascoigne/ragekit/encyclopedia"
 	"github.com/tgascoigne/ragekit/jenkins"
@@ -31,7 +29,7 @@ func main() {
 
 	path := flag.Arg(0)
 
-	encyclopedia.ConnectDb("bolt://neo4j:jetpack@localhost:7687")
+	encyclopedia.ConnectDb("http://neo4j:jetpack@mimas:7474")
 
 	wg := new(sync.WaitGroup)
 
@@ -106,27 +104,7 @@ func handlePlacement(path string) {
 		}
 	}
 
-	var graphFunc func() error
-	graphFunc = func() (err error) {
-		defer func() {
-			if r := recover(); r != nil {
-				err = r.(error)
-			}
-		}()
-
-		conn := encyclopedia.NewConn()
-		defer conn.Close()
-		conn.Graph(nodes)
-		return nil
-	}
-
-	err = graphFunc()
-	if err != nil {
-		fmt.Printf("trying again...\n")
-		time.Sleep(time.Duration(rand.Intn(30)+10) * time.Second)
-		err = graphFunc()
-		if err != nil {
-			panic(err)
-		}
-	}
+	conn := encyclopedia.NewConn()
+	defer conn.Close()
+	conn.Graph(nodes)
 }

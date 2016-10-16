@@ -1,45 +1,41 @@
 package encyclopedia
 
 import (
+	"database/sql"
 	"fmt"
+	"log"
+	"math"
 	"strings"
-	"sync"
 
-	bolt "github.com/johnnadratowski/golang-neo4j-bolt-driver"
 	"github.com/tgascoigne/ragekit/jenkins"
 	"github.com/tgascoigne/ragekit/resource/types"
+	_ "gopkg.in/cq.v1"
 )
 
 type dbConfig struct {
-	driver bolt.Driver
-	addr   string
+	addr string
 }
 
 type DbConn struct {
-	conn bolt.Conn
+	conn *sql.DB
 }
 
 var DB dbConfig
-var dbLock sync.Mutex
 
 func ConnectDb(addr string) {
-	pool := bolt.NewDriver()
-
 	DB = dbConfig{
-		driver: pool,
-		addr:   addr,
+		addr: addr,
 	}
 }
 
 func NewConn() *DbConn {
-	dbLock.Lock()
-	conn, err := DB.driver.OpenNeo(DB.addr)
+	db, err := sql.Open("neo4j-cypher", DB.addr)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	return &DbConn{
-		conn: conn,
+		conn: db,
 	}
 }
 
@@ -51,7 +47,6 @@ func (c *DbConn) Graph(nodes []Node) {
 
 func (c *DbConn) Close() {
 	c.conn.Close()
-	dbLock.Unlock()
 }
 
 func (c *DbConn) GraphNode(node Node) int64 {
@@ -61,17 +56,26 @@ func (c *DbConn) GraphNode(node Node) int64 {
 	//fmt.Printf("node is %#v\n", node)
 	//fmt.Printf("statement is %v\n", stmt)
 
-	conn := c.conn
+	properties := typeConvPropertyValues(node.Properties())
+	propsList := make([]interface{}, 0)
+	for _, v := range properties {
+		propsList = append(propsList, v)
+	}
 
-	result, err := conn.QueryNeo(stmt, typeConvPropertyValues(node.Properties()))
+	conn := c.conn
+	rows, err := conn.Query(stmt, propsList...)
 	if err != nil {
 		panic(err)
 	}
 
-	row, _, _ := result.NextNeo()
-	nodeId := row[0].(int64)
+	var nodeId int64
+	rows.Next()
+	err = rows.Scan(&nodeId)
+	if err != nil {
+		panic(err)
+	}
 
-	result.Close()
+	rows.Close()
 
 	for name, value := range node.Properties() {
 		if value, ok := value.(jenkins.Jenkins32); ok && value != jenkins.Jenkins32(0) {
@@ -84,29 +88,11 @@ func (c *DbConn) GraphNode(node Node) int64 {
 	return nodeId
 }
 
-func (c *DbConn) nodeId(node Node) int64 {
-	stmt := fmt.Sprintf("MATCH (n:%v {%v}) RETURN ID(n)", node.Label(), createPropertyList(node.Properties()))
-	params := typeConvPropertyValues(node.Properties())
-
-	result, err := c.conn.QueryNeo(stmt, params)
-	if err != nil {
-		panic(err)
-	}
-
-	row, _, _ := result.NextNeo()
-	id := row[0].(int64)
-
-	result.Close()
-
-	return id
-}
-
 func (c *DbConn) GraphRelationship(fromId, toId int64, label string) {
 	stmt := fmt.Sprintf(`MATCH (from) WHERE ID(from) = %v
 MATCH (to) WHERE ID(to) = %v
 CREATE (from)-[%v]->(to)`, fromId, toId, label)
-
-	_, err := c.conn.ExecNeo(stmt, nil)
+	_, err := c.conn.Exec(stmt)
 	if err != nil {
 		panic(err)
 	}
@@ -127,13 +113,19 @@ func typeConvPropertyValue(value interface{}) interface{} {
 		return value.String()
 
 	case types.Float32:
-		return float32(value)
+		if math.IsNaN(float64(value)) {
+			return float64(0)
+		}
+		return float64(value)
 
 	case types.Vec4f:
-		return []interface{}{float32(value[0]), float32(value[1]), float32(value[2]), float32(value[3])}
+		return []float64{typeConvPropertyValue(value[0]).(float64),
+			typeConvPropertyValue(value[1]).(float64),
+			typeConvPropertyValue(value[2]).(float64),
+			typeConvPropertyValue(value[3]).(float64)}
 
 	case types.Unknown32:
-		return uint32(value)
+		return int64(value)
 
 	default:
 		if value == nil {
@@ -146,8 +138,10 @@ func typeConvPropertyValue(value interface{}) interface{} {
 func createPropertyList(props map[string]interface{}) string {
 	results := make([]string, 0)
 
+	i := 0
 	for name, _ := range props {
-		results = append(results, fmt.Sprintf("%v: {%v}", name, name))
+		results = append(results, fmt.Sprintf("%v: {%v}", name, i))
+		i++
 	}
 
 	return strings.Join(results, ", ")
