@@ -29,8 +29,7 @@ func main() {
 
 	path := flag.Arg(0)
 
-	encyclopedia.ConnectDb("bolt://localhost:7684")
-	defer encyclopedia.CloseDb()
+	encyclopedia.ConnectDb("bolt://neo4j:jetpack@mimas:7687")
 
 	wg := new(sync.WaitGroup)
 
@@ -107,5 +106,7 @@ func handlePlacement(path string) {
 		}
 	}
 
-	encyclopedia.Graph(nodes)
+	conn := encyclopedia.NewConn()
+	defer conn.Close()
+	conn.Graph(nodes)
 }
