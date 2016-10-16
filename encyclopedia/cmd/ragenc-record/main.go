@@ -44,13 +44,6 @@ func main() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-
-				defer func() {
-					if err := recover(); err != nil {
-						fmt.Printf("error recording %v: %v\n", path, err)
-					}
-				}()
-
 				record(path)
 			}()
 
