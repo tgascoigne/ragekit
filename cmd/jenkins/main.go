@@ -11,7 +11,7 @@ import (
 
 var exhaustive = flag.Bool("exhaustive", false, "exhaustive hash (hash all substrings)")
 var index = flag.Bool("index", false, "output in jenkindex form")
-var representation = flag.String("repr", "uint", "output representation (uint, int, hex)")
+var representation = flag.String("repr", "uint", "output representation (uint, int, hex, none)")
 
 var hashFunc = jenkins.New()
 
@@ -55,6 +55,11 @@ func format(j jenkins.Jenkins32) string {
 }
 
 func hashString(s string) {
+	if *representation == "none" {
+		fmt.Println(s)
+		return
+	}
+
 	hashFunc.UpdateArray([]uint8(s))
 	hash := hashFunc.HashJenkins32()
 	hashFunc.Reset()
