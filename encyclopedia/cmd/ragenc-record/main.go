@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/tgascoigne/ragekit/encyclopedia"
 	"github.com/tgascoigne/ragekit/jenkins"
@@ -123,6 +124,7 @@ func handlePlacement(path string) {
 	err = graphFunc()
 	if err != nil {
 		fmt.Printf("trying again...")
+		time.Sleep(5 * time.Second)
 		err = graphFunc()
 		if err != nil {
 			panic(err)
