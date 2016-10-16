@@ -7,9 +7,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 var Index []string
+
+var cacheLock sync.Mutex
 var cache = map[Jenkins32]string{}
 
 type IndexByHash []string
@@ -68,8 +71,25 @@ func splitEntry(s string) (uint32, string) {
 	return uint32(hash), parts[1]
 }
 
-func Lookup(j Jenkins32) string {
+func isCached(j Jenkins32) string {
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
+
 	if result, ok := cache[j]; ok {
+		return result
+	}
+	return ""
+}
+
+func cacheResult(j Jenkins32, result string) {
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
+
+	cache[j] = result
+}
+
+func Lookup(j Jenkins32) string {
+	if result := isCached(j); result != "" {
 		return result
 	}
 
@@ -103,6 +123,7 @@ func Lookup(j Jenkins32) string {
 		return ""
 	}
 
-	cache[j] = Index[index]
+	cacheResult(j, Index[index])
+
 	return Index[index]
 }
