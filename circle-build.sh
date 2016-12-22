@@ -1,5 +1,7 @@
 #!/bin/bash
 set -ex
+base_pkg=github.com/tgascoigne/ragekit
+
 function build_for() {
 	goos=$1
 	goarch=$2
@@ -8,7 +10,7 @@ function build_for() {
 	mkdir -p $outdir
 
 	(cd $outdir;
-	for f in `go list github.com/tgascoigne/ragekit/cmd/...`; do
+	for f in `go list $base_pkg/cmd/...`; do
 		GOOS=$goos GOARCH=$goarch go build $f;
 	done;
 	cd ..;
@@ -16,6 +18,7 @@ function build_for() {
 	)
 }
 
+go get $base_pkg
 #build_for windows 386 
 build_for windows amd64 
 #build_for linux 386 
