@@ -3,7 +3,6 @@ package script
 import (
 	"fmt"
 	"math"
-	"os"
 	"runtime"
 
 	"github.com/tgascoigne/ragekit/resource"
@@ -103,16 +102,12 @@ func (script *Script) LoadHashDictionary(dictPath string) error {
 	return nil
 }
 
-func (script *Script) Unpack(res *resource.Container, outpath string) error {
+type EmitFunc func(Instruction)
+
+func (script *Script) Unpack(res *resource.Container, emitFn EmitFunc) (err error) {
 	res.Parse(&script.Header)
 
 	script.VM.Init(script)
-
-	outFile, err := os.Create(outpath)
-	if err != nil {
-		return err
-	}
-	defer outFile.Close()
 
 	/* parse the native table */
 	err = res.Detour(script.Header.NativeTable, func() error {
@@ -120,17 +115,6 @@ func (script *Script) Unpack(res *resource.Container, outpath string) error {
 		script.NativeTable = make([]Native64, count)
 		for i := 0; i < int(count); i++ {
 			res.Parse(&script.NativeTable[i])
-			/* Is this endian correct?
-			x := script.NativeTable[i]
-			x = (((x >> 0) & 0xFF) << 56) +
-				(((x >> 8) & 0xFF) << 48) +
-				(((x >> 16) & 0xFF) << 40) +
-				(((x >> 24) & 0xFF) << 32) +
-				(((x >> 32) & 0xFF) << 24) +
-				(((x >> 40) & 0xFF) << 16) +
-				(((x >> 48) & 0xFF) << 8) +
-				(((x >> 56) & 0xFF) << 0)
-			script.NativeTable[i] = x */
 		}
 		return nil
 	})
@@ -179,7 +163,7 @@ func (script *Script) Unpack(res *resource.Container, outpath string) error {
 
 			/* disassemble it */
 			if err := res.Detour(blockAddr, func() error {
-				script.disassembleBlock(uint32(i*0x4000), res, outFile, toRead)
+				script.disassembleBlock(uint32(i*0x4000), res, emitFn, toRead)
 				if toRead < 0x4000 {
 					toRead = 0
 				} else {
@@ -201,7 +185,7 @@ func (script *Script) Unpack(res *resource.Container, outpath string) error {
 	return nil
 }
 
-func (script *Script) disassembleBlock(base uint32, res *resource.Container, outFile *os.File, toRead uint32) {
+func (script *Script) disassembleBlock(base uint32, res *resource.Container, emitFn EmitFunc, toRead uint32) {
 	startAddrReal := uint32(res.Tell())
 	//	fmt.Printf("disassembling block at %x, toread %v\n", startAddrReal, toRead)
 
@@ -245,7 +229,7 @@ func (script *Script) disassembleBlock(base uint32, res *resource.Container, out
 
 		script.VM.Execute(istr)
 
-		outFile.WriteString(fmt.Sprintf("%.8x: %v%v", curAddrVirt, istr.String(), lineEnding))
+		emitFn(*istr)
 	}
 }
 

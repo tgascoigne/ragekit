@@ -24,5 +24,5 @@ func (i *Instruction) String() string {
 		mnSuffix = v
 	}
 
-	return fmt.Sprintf("%v%v %v", mn, mnSuffix, i.Operands.String())
+	return fmt.Sprintf("%.8x: %v%v %v", i.Address, mn, mnSuffix, i.Operands.String())
 }

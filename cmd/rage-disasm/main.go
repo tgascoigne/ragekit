@@ -44,12 +44,23 @@ func main() {
 	}
 
 	/* Unpack the script at 0x10 */
-	script := script.NewScript(path.Base(in_file), uint32(len(data)))
-	if err = script.LoadHashDictionary("./natives.json"); err != nil {
+	outScript := script.NewScript(path.Base(in_file), uint32(len(data)))
+	if err = outScript.LoadHashDictionary("./natives.json"); err != nil {
 		log.Printf("Unable to load hash dictionary (%v). Lookups will be unavailable\n", err)
 	}
 
-	if err = script.Unpack(res, os.Args[2]); err != nil {
+	outFile, err := os.Create(os.Args[2])
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer outFile.Close()
+
+	emitFunc := func(istr script.Instruction) {
+		outFile.WriteString(fmt.Sprintf("%v\n", istr.String()))
+	}
+
+	if err = outScript.Unpack(res, emitFunc); err != nil {
 		log.Fatal(err)
 	}
 }

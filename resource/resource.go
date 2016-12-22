@@ -159,8 +159,6 @@ func (res *Container) Unpack(data []byte, filename string, filesize uint32) erro
 		fmt.Printf("Deflate failed: %v\n", err)
 	}
 
-	ioutil.WriteFile("decrypted.rage", res.Data, 0744)
-
 	return nil
 }
 
