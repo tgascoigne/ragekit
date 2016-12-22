@@ -14,7 +14,7 @@ function build_for() {
 		GOOS=$goos GOARCH=$goarch go build $f;
 	done;
 	cd ..;
-	zip -rD ragekit-${goos}-${goarch}.zip $outdir;
+	zip -9 -rD ragekit-${goos}-${goarch}.zip $outdir;
 	rm -rf $outdir)
 }
 
