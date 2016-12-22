@@ -18,7 +18,7 @@ function build_for() {
 	)
 }
 
-go get $base_pkg
+go get $base_pkg/...
 #build_for windows 386 
 build_for windows amd64 
 #build_for linux 386 
