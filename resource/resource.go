@@ -38,7 +38,7 @@ type ContainerHeader struct {
 }
 
 func (c ContainerHeader) Type() uint8 {
-	return uint8(c.Version & 0xFF)
+	return uint8((c.Version >> 24) & 0xFF)
 }
 
 const (
@@ -77,7 +77,7 @@ func (res *Container) Decrypt(ctx *crypto.Context) error {
 
 func (res *Container) DecryptNG(ctx *crypto.Context, filename string, filesize uint32) error {
 	// We need to remove the header (0x10) from the file size, as it's not encrypted
-	plaintext, err := ctx.DecryptNG(res.Data[res.position:], filename, filesize-0x10)
+	plaintext, err := ctx.DecryptNG(res.Data[res.position:], filename, filesize)
 	if err != nil {
 		return err
 	}
