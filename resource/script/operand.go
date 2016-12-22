@@ -272,18 +272,24 @@ type EnterOperands struct {
 	NumArgs  uint8
 	Unknown1 uint8
 	Unknown2 uint8
-	Unknown3 uint8
+	NameLength uint8
+	Name string
 }
 
 func (op *EnterOperands) String() string {
-	return fmt.Sprintf("%v %v %v %v", op.NumArgs, op.Unknown1, op.Unknown2, op.Unknown3)
+	return fmt.Sprintf("%v %v %v %v <%v>", op.NumArgs, op.Unknown1, op.Unknown2, op.NameLength, op.Name)
 }
 
 func (op *EnterOperands) Unpack(istr *Instruction, script *Script, res *resource.Container) {
 	res.Parse(&op.NumArgs)
 	res.Parse(&op.Unknown1)
 	res.Parse(&op.Unknown2)
-	res.Parse(&op.Unknown3)
+	res.Parse(&op.NameLength)
+	if op.NameLength > 0 {
+		res.Parse(&op.Name)
+	} else {
+		op.Name = "anonymous"
+	}
 }
 
 type RetOperands struct {

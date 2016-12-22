@@ -148,8 +148,9 @@ func (res *Container) Unpack(data []byte, filename string, filesize uint32) erro
 
 	if res.Header.Type() == ResourceScript {
 		err = res.DecryptNG(ctx, filename, filesize)
+		//err = res.Decrypt(ctx)
 		if err != nil {
-			fmt.Printf("NG decrypt failed: %v\n", err)
+			fmt.Printf("Decrypt failed: %v\n", err)
 		}
 	}
 
