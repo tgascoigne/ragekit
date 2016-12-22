@@ -49,15 +49,23 @@ func main() {
 		log.Printf("Unable to load hash dictionary (%v). Lookups will be unavailable\n", err)
 	}
 
-	outFile, err := os.Create(os.Args[2])
-	if err != nil {
-		log.Fatal(err)
-	}
+	var emitFunc script.EmitFunc
 
-	defer outFile.Close()
+	if len(os.Args) > 2 {
+		outFile, err := os.Create(os.Args[2])
+		if err != nil {
+			log.Fatal(err)
+		}
 
-	emitFunc := func(istr script.Instruction) {
-		outFile.WriteString(fmt.Sprintf("%v\n", istr.String()))
+		defer outFile.Close()
+
+		emitFunc = func(istr script.Instruction) {
+			outFile.WriteString(fmt.Sprintf("%v\n", istr.String()))
+		}
+	} else {
+		emitFunc = func(istr script.Instruction) {
+			fmt.Println(istr.String())
+		}
 	}
 
 	if err = outScript.Unpack(res, emitFunc); err != nil {
