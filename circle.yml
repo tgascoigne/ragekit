@@ -1,4 +1,0 @@
-compile:
-  override:
-    - ./circle-build.sh
-

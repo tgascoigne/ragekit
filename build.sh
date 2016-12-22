@@ -6,7 +6,7 @@ function build_for() {
 	goos=$1
 	goarch=$2
 
-	outdir=$(readlink -f ${CIRCLE_ARTIFACTS})/${goos}-${goarch}
+	outdir=$(readlink -f ${ARTIFACTS_DIR})/${goos}-${goarch}
 	mkdir -p $outdir
 
 	(cd $outdir;
@@ -15,7 +15,7 @@ function build_for() {
 	done;
 	cd ..;
 	zip -rD ragekit-${goos}-${goarch}.zip $outdir;
-	)
+	rm -rf $outdir)
 }
 
 go get $base_pkg/...
