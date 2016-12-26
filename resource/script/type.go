@@ -26,9 +26,9 @@ const (
 	OpPush
 	OpDup
 	OpDrop
-	OpStackGetP
-	OpStackGet
-	OpStackSet
+	OpPushStr
+	OpPushStrL
+	OpPushStrN
 	OpStackEnd  /* used to test for stack ops */
 	OpFlowStart /* used to test for flow control ops */
 	OpCallN
@@ -69,9 +69,6 @@ const (
 	OpVarEnd /* used to test for var ops */
 	OpSh2Add
 	OpSh2AddPk
-	OpPushStr
-	OpPushStrL
-	OpPushStrN
 	OpStrCpy
 	OpItoF
 	OpFtoI
@@ -139,9 +136,9 @@ var OpType = map[uint8]uint8{
 	55:  OpGetLocalP,
 	56:  OpGetLocal,
 	57:  OpSetLocal,
-	58:  OpStackGetP,
-	59:  OpStackGet,
-	60:  OpStackSet,
+	58:  OpGetStaticP,
+	59:  OpGetStatic,
+	60:  OpSetStatic,
 	61:  OpAdd,
 	62:  OpMul,
 	63:  OpArrayGetP,

@@ -258,14 +258,6 @@ func (vm *VM) execStackOp(istr *Instruction) {
 		}
 
 		switch istr.Operation {
-		case OpStackGet:
-			val := vm.Stack.PeekAt(operand)
-			vm.Stack.Push(val)
-		case OpStackSet:
-			vm.Stack.PokeAt(operand, vm.Stack.Pop())
-		case OpStackGetP:
-			vm.PushInt(0)
-			/* todo: stackgetp */
 		case OpPush:
 			vm.PushInt(operand)
 		}

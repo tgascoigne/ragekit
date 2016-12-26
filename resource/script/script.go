@@ -31,14 +31,14 @@ type ScriptHeader struct {
 	CodeLength uint32
 
 	_           uint32
-	_           types.Ptr32
+	StaticCount uint32
 	_           uint32
 	NativeCount uint32
 
-	_ uint32
-	_ uint32
-	_ uint32
-	_ uint32
+	StaticTable types.Ptr32
+	_           uint32
+	_           uint32
+	_           uint32
 
 	NativeTable types.Ptr32
 	_           types.Ptr32
@@ -62,14 +62,15 @@ type ScriptHeader struct {
 }
 
 type Script struct {
-	FileName    string
-	FileSize    uint32
-	Header      ScriptHeader
-	NativeTable []Native64
-	StringTable []byte
-	Code        []*Instruction
-	VM          VM
-	HashTable   *HashTable
+	FileName     string
+	FileSize     uint32
+	Header       ScriptHeader
+	NativeTable  []Native64
+	StaticValues []uint64
+	StringTable  []byte
+	Code         []*Instruction
+	VM           VM
+	HashTable    *HashTable
 }
 
 func NewScript(filename string, filesize uint32) *Script {
@@ -108,6 +109,19 @@ func (script *Script) Unpack(res *resource.Container, emitFn EmitFunc) (err erro
 	res.Parse(&script.Header)
 
 	script.VM.Init(script)
+
+	/* parse the static initializers */
+	err = res.Detour(script.Header.StaticTable, func() error {
+		count := script.Header.StaticCount
+		script.StaticValues = make([]uint64, count)
+		for i := 0; i < int(count); i++ {
+			res.Parse(&script.StaticValues[i])
+		}
+		return nil
+	})
+	if err != nil {
+		fmt.Printf("Couldn't parse static initializers: %v\n", err)
+	}
 
 	/* parse the native table */
 	err = res.Detour(script.Header.NativeTable, func() error {

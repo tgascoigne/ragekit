@@ -94,6 +94,28 @@ var OperandFunc = map[uint8]InitOperandFunc{
 	126: func() Operands { return &ImplicitFOperands{offset: 119} },
 }
 
+// Types
+type Type string
+
+const (
+	VoidType   Type = "void"
+	IntType    Type = "int"
+	FloatType  Type = "float"
+	StringType Type = "char*"
+)
+
+func (t Type) CString() string {
+	return string(t)
+}
+
+type DataTypeable interface {
+	DataType() Type
+}
+
+type ImmediateIntOperands interface {
+	Int() int
+}
+
 type NoOperands struct{}
 
 func (op *NoOperands) String() string {
@@ -106,6 +128,14 @@ type Immediate8Operands struct {
 	Val uint8
 }
 
+func (op *Immediate8Operands) DataType() Type {
+	return IntType
+}
+
+func (op *Immediate8Operands) Int() int {
+	return int(op.Val)
+}
+
 func (op *Immediate8Operands) String() string {
 	return fmt.Sprintf("%v", op.Val)
 }
@@ -116,6 +146,10 @@ func (op *Immediate8Operands) Unpack(istr *Instruction, script *Script, res *res
 
 type Immediate8x2Operands struct {
 	Val0, Val1 uint8
+}
+
+func (op *Immediate8x2Operands) DataType() Type {
+	return IntType
 }
 
 func (op *Immediate8x2Operands) String() string {
@@ -131,6 +165,10 @@ type Immediate8x3Operands struct {
 	Val0, Val1, Val2 uint8
 }
 
+func (op *Immediate8x3Operands) DataType() Type {
+	return IntType
+}
+
 func (op *Immediate8x3Operands) String() string {
 	return fmt.Sprintf("%v %v %v", op.Val0, op.Val1, op.Val2)
 }
@@ -143,6 +181,14 @@ func (op *Immediate8x3Operands) Unpack(istr *Instruction, script *Script, res *r
 
 type Immediate24Operands struct {
 	Val uint32
+}
+
+func (op *Immediate24Operands) DataType() Type {
+	return IntType
+}
+
+func (op *Immediate24Operands) Int() int {
+	return int(op.Val)
 }
 
 func (op *Immediate24Operands) String() string {
@@ -165,6 +211,14 @@ type Immediate16Operands struct {
 	Val uint16
 }
 
+func (op *Immediate16Operands) DataType() Type {
+	return IntType
+}
+
+func (op *Immediate16Operands) Int() int {
+	return int(op.Val)
+}
+
 func (op *Immediate16Operands) String() string {
 	return fmt.Sprintf("%v", op.Val)
 }
@@ -176,6 +230,14 @@ func (op *Immediate16Operands) Unpack(istr *Instruction, script *Script, res *re
 type Immediate32Operands struct {
 	Val      uint32
 	HashStrs []string
+}
+
+func (op *Immediate32Operands) DataType() Type {
+	return IntType
+}
+
+func (op *Immediate32Operands) Int() int {
+	return int(op.Val)
 }
 
 func (op *Immediate32Operands) String() string {
@@ -202,6 +264,10 @@ type ImmediateF32Operands struct {
 	Val float32
 }
 
+func (op *ImmediateF32Operands) DataType() Type {
+	return FloatType
+}
+
 func (op *ImmediateF32Operands) String() string {
 	return fmt.Sprintf("%v", op.Val)
 }
@@ -226,18 +292,20 @@ func (op *BranchOperands) Unpack(istr *Instruction, script *Script, res *resourc
 }
 
 type CallNOperands struct {
-	ParamSize  uint8
+	InSize     uint8
+	OutSize    uint8
 	Native     Native64
 	NativeStrs []string
 }
 
 func (op *CallNOperands) String() string {
-	return fmt.Sprintf("%x %v <%v>", op.Native, op.ParamSize, strings.Join(op.NativeStrs, ","))
+	return fmt.Sprintf("%x %v %v <%v>", op.Native, op.InSize, op.OutSize, strings.Join(op.NativeStrs, ","))
 }
 
 func (op *CallNOperands) Unpack(istr *Instruction, script *Script, res *resource.Container) {
 	var nativeIndex uint16
-	res.Parse(&op.ParamSize)
+	var nativeOperand uint8
+	res.Parse(&nativeOperand)
 	res.ParseBigEndian(&nativeIndex)
 
 	op.Native = script.NativeTable[nativeIndex]
@@ -246,6 +314,9 @@ func (op *CallNOperands) Unpack(istr *Instruction, script *Script, res *resource
 	} else {
 		op.NativeStrs = []string{"unknown"}
 	}
+
+	op.InSize = (nativeOperand >> 2) & 0x3
+	op.OutSize = nativeOperand & 0x3
 }
 
 type CallOperands struct {
@@ -269,20 +340,20 @@ func (op *CallOperands) Unpack(istr *Instruction, script *Script, res *resource.
 }
 
 type EnterOperands struct {
-	NumArgs  uint8
-	Unknown1 uint8
-	Unknown2 uint8
+	NumArgs    uint8
+	NumLocals  uint8
+	Unknown2   uint8
 	NameLength uint8
-	Name string
+	Name       string
 }
 
 func (op *EnterOperands) String() string {
-	return fmt.Sprintf("%v %v %v %v <%v>", op.NumArgs, op.Unknown1, op.Unknown2, op.NameLength, op.Name)
+	return fmt.Sprintf("%v %v %v %v <%v>", op.NumArgs, op.NumLocals, op.Unknown2, op.NameLength, op.Name)
 }
 
 func (op *EnterOperands) Unpack(istr *Instruction, script *Script, res *resource.Container) {
 	res.Parse(&op.NumArgs)
-	res.Parse(&op.Unknown1)
+	res.Parse(&op.NumLocals)
 	res.Parse(&op.Unknown2)
 	res.Parse(&op.NameLength)
 	if op.NameLength > 0 {
@@ -311,6 +382,10 @@ type ImplicitOperands struct {
 	Val    int
 }
 
+func (op *ImplicitOperands) DataType() Type {
+	return IntType
+}
+
 func (op *ImplicitOperands) String() string {
 	return fmt.Sprintf("%v", op.Val)
 }
@@ -319,9 +394,17 @@ func (op *ImplicitOperands) Unpack(istr *Instruction, script *Script, res *resou
 	op.Val = int(istr.Opcode) - op.offset
 }
 
+func (op *ImplicitOperands) Int() int {
+	return op.Val
+}
+
 type ImplicitFOperands struct {
 	offset int
 	Val    float32
+}
+
+func (op *ImplicitFOperands) DataType() Type {
+	return FloatType
 }
 
 func (op *ImplicitFOperands) String() string {
@@ -374,6 +457,10 @@ func (op *SwitchOperands) Unpack(istr *Instruction, script *Script, res *resourc
 
 type StringOperands struct {
 	Val string
+}
+
+func (op *StringOperands) DataType() Type {
+	return StringType
 }
 
 func (op *StringOperands) String() string {
