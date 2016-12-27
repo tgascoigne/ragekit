@@ -37,8 +37,9 @@ type CStringer interface {
 
 // A File is the top level AST Object
 type File struct {
-	Decls Declarations
-	Nodes []Node
+	Decls     Declarations
+	Functions []*Function
+	Nodes     []Node
 }
 
 func (f File) CString() string {
@@ -185,6 +186,8 @@ type Function struct {
 	Out        *Variable
 	Decls      Declarations
 	Statements []Node
+
+	instrs *Instructions
 
 	retInstrs []script.RetOperands
 

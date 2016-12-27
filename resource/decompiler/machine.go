@@ -7,38 +7,22 @@ import (
 )
 
 type Machine struct {
-	code   []script.Instruction
-	idx    int
 	file   *File
 	script *script.Script
+	instrs *Instructions
 
 	identifierIdx int
 }
 
 func NewMachine(script *script.Script, code []script.Instruction) *Machine {
 	return &Machine{
-		code:   code,
+		instrs: &Instructions{
+			code: code,
+			idx:  0,
+		},
 		script: script,
 		file:   &File{},
 	}
-}
-
-func (m *Machine) popInstruction() script.Instruction {
-	istr := m.peekInstruction()
-	m.idx++
-	return istr
-}
-
-func (m *Machine) peekInstruction() script.Instruction {
-	if m.idx > len(m.code) {
-		panic("eof when peeking instruction")
-	}
-
-	return m.code[m.idx]
-}
-
-func (m *Machine) isEOF() bool {
-	return m.idx >= len(m.code)
 }
 
 func (m *Machine) createStaticDecls() {
@@ -63,29 +47,36 @@ func (m *Machine) createStaticDecls() {
 func (m *Machine) Decompile() File {
 	m.createStaticDecls()
 
-	for !m.isEOF() {
-		istr := m.peekInstruction()
-		var node Node
+	m.file.Functions = make([]*Function, 0)
+
+	for !m.instrs.isEOF() {
+		istr := m.instrs.peekInstruction()
 
 		switch istr.Operation {
 		case script.OpEnter:
-			node = m.decompileFunction()
+			newFunc := m.scanFunction()
+			m.file.Functions = append(m.file.Functions, &newFunc)
 		case script.OpNop:
 
 		default:
 			panic(fmt.Sprintf("unexpected instruction %v\n", istr))
 		}
+	}
 
-		m.file.Nodes = append(m.file.Nodes, node)
+	for i := range m.file.Functions {
+		m.decompileFunction(m.file.Functions[i])
+		m.file.Nodes = append(m.file.Nodes, m.file.Functions[i])
 	}
 
 	return *m.file
 }
 
-func (m *Machine) decompileFunction() Function {
-	function := &Function{}
+func (m *Machine) scanFunction() Function {
+	function := Function{
+		instrs: &Instructions{},
+	}
 
-	enterIstr := m.popInstruction()
+	enterIstr := m.instrs.nextInstruction()
 	operands := enterIstr.Operands.(*script.EnterOperands)
 
 	function.Identifier = operands.Name
@@ -94,6 +85,7 @@ func (m *Machine) decompileFunction() Function {
 		Type:       script.VoidType,
 	}
 
+	// Create arg decls
 	for i := 0; i < int(operands.NumArgs); i++ {
 		arg := &Variable{
 			Identifier: fmt.Sprintf("local_%v", i),
@@ -103,6 +95,7 @@ func (m *Machine) decompileFunction() Function {
 		function.Decls.AddVariable(arg.Declaration())
 	}
 
+	// Create local decls
 	for i := int(operands.NumArgs); i < int(operands.NumLocals); i++ {
 		local := &Variable{
 			Identifier: fmt.Sprintf("local_%v", i),
@@ -111,19 +104,41 @@ func (m *Machine) decompileFunction() Function {
 		function.Decls.AddVariable(local.Declaration())
 	}
 
-	/* parse body */
-	for !m.isEOF() {
-		/* FIXME for now, we can only tell a function has ended because another has begun
-		   need control flow handling */
-		istr := m.peekInstruction()
-		if istr.Operation == script.OpEnter {
+	// Scan for RETs and copy the instructions in this function into a new buffer
+	for !m.instrs.isEOF() {
+		nextIstr := m.instrs.peekInstruction()
+		if nextIstr.Operation == script.OpEnter {
 			break
 		}
 
-		m.decompileStatement(function)
+		function.instrs.append(nextIstr)
+		m.instrs.nextInstruction()
+
+		if nextIstr.Operation == script.OpRet {
+			function.inferReturnType(nextIstr)
+		}
 	}
 
-	return *function
+	return function
+}
+
+func (fn *Function) inferReturnType(ret script.Instruction) {
+	retVar := fn.Out
+	op := ret.Operands.(*script.RetOperands)
+	if op.NumReturnVals == 0 {
+		retVar.InferType(script.VoidType)
+	} else if op.NumReturnVals == 1 {
+		retVal := fn.peekNode()
+		retVar.InferType(retVal.(script.DataTypeable).DataType())
+	} else {
+		panic("unable to infer return value of function")
+	}
+}
+
+func (m *Machine) decompileFunction(fn *Function) {
+	for !fn.instrs.isEOF() {
+		m.decompileStatement(fn)
+	}
 }
 
 func (fn *Function) emitStatement(stmt Node) {
@@ -167,7 +182,7 @@ func (fn *Function) peekNode() Node {
 }
 
 func (m *Machine) decompileStatement(fn *Function) {
-	istr := m.peekInstruction()
+	istr := fn.instrs.peekInstruction()
 	//fn.emitComment("asm(\"%v\")", istr.String())
 	op := istr.Operation
 	switch {
@@ -180,14 +195,14 @@ func (m *Machine) decompileStatement(fn *Function) {
 		fallthrough
 	case op == script.OpPushStrL:
 		fn.pushNode(Immediate{istr.Operands})
-		m.popInstruction()
+		fn.instrs.nextInstruction()
 	case op == script.OpDrop:
 		fn.popNode()
-		m.popInstruction()
+		fn.instrs.nextInstruction()
 	case op == script.OpDup:
 		duped := fn.peekNode()
 		fn.pushNode(duped)
-		m.popInstruction()
+		fn.instrs.nextInstruction()
 
 	/* variable access ops */
 	case op == script.OpGetStaticP:
@@ -221,7 +236,7 @@ func (m *Machine) decompileStatement(fn *Function) {
 }
 
 func (m *Machine) decompileUnknownOp(fn *Function) {
-	istr := m.popInstruction()
+	istr := fn.instrs.nextInstruction()
 	if istr.Operation == script.OpNop {
 		return
 	}
@@ -229,7 +244,7 @@ func (m *Machine) decompileUnknownOp(fn *Function) {
 }
 
 func (m *Machine) decompileReturn(fn *Function) {
-	istr := m.popInstruction()
+	istr := fn.instrs.nextInstruction()
 	op := istr.Operands.(*script.RetOperands)
 
 	retVar := fn.Out
@@ -252,7 +267,7 @@ func (m *Machine) decompileReturn(fn *Function) {
 }
 
 func (m *Machine) decompileVarAccess(fn *Function) {
-	istr := m.popInstruction()
+	istr := fn.instrs.nextInstruction()
 	op := istr.Operands.(script.ImmediateIntOperands)
 
 	deRef := false
@@ -284,7 +299,7 @@ func (m *Machine) decompileVarAccess(fn *Function) {
 }
 
 func (m *Machine) decompileImplode(fn *Function) {
-	_ = m.popInstruction()
+	_ = fn.instrs.nextInstruction()
 	dest := fn.popNode()
 
 	length := fn.popNode().(Immediate).Value.(script.ImmediateIntOperands).Int() // ewww
@@ -301,7 +316,7 @@ func (m *Machine) decompileImplode(fn *Function) {
 }
 
 func (m *Machine) decompileAssignment(fn *Function) {
-	istr := m.popInstruction()
+	istr := fn.instrs.nextInstruction()
 	op := istr.Operands.(script.ImmediateIntOperands)
 
 	var dest *Variable
@@ -324,7 +339,7 @@ func (m *Machine) decompileAssignment(fn *Function) {
 
 func (m *Machine) decompileMathOp(fn *Function) {
 	var token Token
-	op := m.popInstruction()
+	op := fn.instrs.nextInstruction()
 
 	fmt.Printf("math op is %v\n", op.String())
 

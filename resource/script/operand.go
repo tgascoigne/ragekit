@@ -359,7 +359,7 @@ func (op *EnterOperands) Unpack(istr *Instruction, script *Script, res *resource
 	if op.NameLength > 0 {
 		res.Parse(&op.Name)
 	} else {
-		op.Name = "anonymous"
+		op.Name = fmt.Sprintf("anonymous_%x", istr.Address)
 	}
 }
 
