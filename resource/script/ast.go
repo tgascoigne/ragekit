@@ -239,37 +239,6 @@ func (d VariableDeclaration) CString() string {
 	}
 }
 
-// A Function accepts inputs, executes a set of Nodes, and returns a single output
-type Function struct {
-	Identifier string
-	In         Declarations
-	Out        *Variable
-	Decls      Declarations
-	Statements []Node
-	Address    uint32
-
-	instrs *Instructions
-
-	retInstrs []RetOperands
-
-	nodeStack    []Node
-	nodeStackIdx int
-}
-
-func (fn Function) CString() string {
-	stmts := make([]string, len(fn.Statements))
-	for i, s := range fn.Statements {
-		stmts[i] = fmt.Sprintf("\t%v;\n", s.CString())
-	}
-
-	args := make([]string, len(fn.In.Vars))
-	for i, arg := range fn.In.Vars {
-		args[i] = arg.CString()
-	}
-
-	return fmt.Sprintf("%v %v(%v) {\n%v\n%v}", fn.Out.Type.CString(), fn.Identifier, strings.Join(args, ", "), fn.Decls.CString(), strings.Join(stmts, ""))
-}
-
 // An AssignStmt assigns a value to a Variable
 type AssignStmt struct {
 	Dest  Node

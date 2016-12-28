@@ -51,7 +51,7 @@ func (m *Machine) Decompile() File {
 		switch istr.Operation {
 		case OpEnter:
 			newFunc := m.scanFunction()
-			m.file.Functions = append(m.file.Functions, &newFunc)
+			m.file.Functions = append(m.file.Functions, newFunc)
 		case OpNop:
 
 		default:
@@ -67,10 +67,8 @@ func (m *Machine) Decompile() File {
 	return *m.file
 }
 
-func (m *Machine) scanFunction() Function {
-	function := Function{
-		instrs: &Instructions{},
-	}
+func (m *Machine) scanFunction() *Function {
+	function := NewFunction()
 
 	enterIstr := m.instrs.nextInstruction()
 	operands := enterIstr.Operands.(*EnterOperands)
@@ -119,68 +117,15 @@ func (m *Machine) scanFunction() Function {
 	return function
 }
 
-func (fn *Function) inferReturnType(ret Instruction) {
-	retVar := fn.Out
-	op := ret.Operands.(*RetOperands)
-	if op.NumReturnVals == 0 {
-		retVar.InferType(VoidType)
-	} else if op.NumReturnVals == 1 {
-		retVal := fn.peekNode()
-		retVar.InferType(retVal.(DataTypeable).DataType())
-	} else {
-		panic("unable to infer return value of function")
-	}
-}
-
 func (m *Machine) decompileFunction(fn *Function) {
 	for !fn.instrs.isEOF() {
-		m.decompileStatement(fn)
+		m.decompileStatement(fn.BasicBlock)
 	}
 }
 
-func (fn *Function) emitStatement(stmt Node) {
-	fn.Statements = append(fn.Statements, stmt)
-}
-
-func (fn *Function) emitComment(format string, args ...interface{}) {
-	commentStr := fmt.Sprintf(format, args...)
-	comment := Comment(commentStr)
-	fn.emitStatement(comment)
-	fmt.Println(commentStr)
-}
-
-func (fn *Function) pushNode(node Node) {
-	fn.nodeStack = append(fn.nodeStack, node)
-	fn.nodeStackIdx++
-	fn.emitComment("pushing %v at stack idx %v", node.CString(), fn.nodeStackIdx)
-}
-
-func (fn *Function) popNode() Node {
-	if fn.nodeStackIdx <= 0 {
-		fmt.Println("node stack underflow")
-		return Immediate{&Immediate32Operands{Val: 0xBABE}}
-	}
-
-	node := fn.peekNode()
-	fn.nodeStackIdx--
-	fn.nodeStack = fn.nodeStack[:fn.nodeStackIdx]
-	//	fmt.Printf("popping %v %v\n", node.CString(), fn.nodeStackIdx)
-	return node
-}
-
-func (fn *Function) peekNode() Node {
-	if fn.nodeStackIdx <= 0 {
-		//		fmt.Printf("peek %v\n", fn.nodeStackIdx)
-		fmt.Println("node stack underflow")
-		return Immediate{&Immediate32Operands{Val: 0xBABE}}
-	}
-
-	return fn.nodeStack[fn.nodeStackIdx-1]
-}
-
-func (m *Machine) decompileStatement(fn *Function) {
-	istr := fn.instrs.peekInstruction()
-	fn.emitComment("asm(\"%v\")", istr.String())
+func (m *Machine) decompileStatement(block *BasicBlock) {
+	istr := block.instrs.peekInstruction()
+	block.emitComment("asm(\"%v\")", istr.String())
 	op := istr.Operation
 	switch {
 	/* standard stack ops */
@@ -191,65 +136,65 @@ func (m *Machine) decompileStatement(fn *Function) {
 	case op == OpPushStrN:
 		fallthrough
 	case op == OpPushStrL:
-		fn.pushNode(Immediate{istr.Operands})
-		fn.instrs.nextInstruction()
+		block.pushNode(Immediate{istr.Operands})
+		block.instrs.nextInstruction()
 	case op == OpDrop:
-		fn.popNode()
-		fn.instrs.nextInstruction()
+		block.popNode()
+		block.instrs.nextInstruction()
 	case op == OpDup:
-		duped := fn.peekNode()
-		fn.pushNode(duped)
-		fn.instrs.nextInstruction()
+		duped := block.peekNode()
+		block.pushNode(duped)
+		block.instrs.nextInstruction()
 
 	/* variable access ops */
 	case op == OpGetStaticP:
 		fallthrough
 	case op == OpGetStatic:
-		m.decompileVarAccess(fn)
+		m.decompileVarAccess(block)
 	case op == OpGetLocalP:
 		fallthrough
 	case op == OpGetLocal:
-		m.decompileVarAccess(fn)
+		m.decompileVarAccess(block)
 
 	/* assignment ops */
 	case op == OpSetLocal:
 		fallthrough
 	case op == OpSetStatic:
-		m.decompileAssignment(fn)
+		m.decompileAssignment(block)
 
 	case op == OpImplode:
-		m.decompileImplode(fn)
+		m.decompileImplode(block)
 	case op == OpExplode:
-		m.decompileExplode(fn)
+		m.decompileExplode(block)
 
 	/* control flow */
 	case op == OpCall:
-		m.decompileCall(fn)
+		m.decompileCall(block)
 	case op == OpCallN:
-		m.decompileCall(fn)
+		m.decompileCall(block)
 
 	/* binary ops */
 	case op > OpMathStart && op < OpMathEnd:
-		m.decompileMathOp(fn)
+		m.decompileMathOp(block)
 
 	case op == OpRet:
-		m.decompileReturn(fn)
+		m.decompileReturn(block)
 
 	default:
-		m.decompileUnknownOp(fn)
+		m.decompileUnknownOp(block)
 	}
 }
 
-func (m *Machine) decompileUnknownOp(fn *Function) {
-	istr := fn.instrs.nextInstruction()
+func (m *Machine) decompileUnknownOp(block *BasicBlock) {
+	istr := block.instrs.nextInstruction()
 	if istr.Operation == OpNop {
 		return
 	}
-	fn.emitStatement(AsmStmt{istr.String()})
+	block.emitStatement(AsmStmt{istr.String()})
 }
 
-func (m *Machine) decompileCall(fn *Function) {
-	istr := fn.instrs.nextInstruction()
+func (m *Machine) decompileCall(block *BasicBlock) {
+	istr := block.instrs.nextInstruction()
 
 	var node Node
 	var targetFn *Function
@@ -263,7 +208,7 @@ func (m *Machine) decompileCall(fn *Function) {
 
 	args := make([]Node, targetFn.In.Size())
 	for i := range args {
-		thisArg := fn.popNode()
+		thisArg := block.popNode()
 		argIdx := targetFn.In.Size() - i - 1
 
 		if inferrable, ok := thisArg.(TypeInferrable); ok {
@@ -294,43 +239,43 @@ func (m *Machine) decompileCall(fn *Function) {
 			outType := targetFn.Out.DataType().(ComplexType)
 			exploded := outType.Explode(resultRef, outType.StackSize())
 			for _, n := range exploded {
-				fn.pushNode(n)
+				block.pushNode(n)
 			}
 		} else {
-			fn.pushNode(resultRef)
+			block.pushNode(resultRef)
 		}
 
 		node = tempDecl
 	}
 
-	fn.emitStatement(node)
+	block.emitStatement(node)
 }
 
-func (m *Machine) decompileReturn(fn *Function) {
-	istr := fn.instrs.nextInstruction()
+func (m *Machine) decompileReturn(block *BasicBlock) {
+	istr := block.instrs.nextInstruction()
 	op := istr.Operands.(*RetOperands)
 
-	retVar := fn.Out
+	retVar := block.ParentFunc.Out
 
 	if op.NumReturnVals == 0 {
 		retVar.InferType(VoidType)
-		fn.emitStatement(ReturnStmt{nil})
+		block.emitStatement(ReturnStmt{nil})
 	} else if op.NumReturnVals == 1 {
-		retVal := fn.peekNode()
+		retVal := block.peekNode()
 		retVar.InferType(retVal.(DataTypeable).DataType())
 
 		if v, ok := retVal.(*Variable); ok {
 			retVal = v.Reference()
 		}
 
-		fn.emitStatement(ReturnStmt{retVal})
+		block.emitStatement(ReturnStmt{retVal})
 	} else {
 		panic("unable to infer return value of function")
 	}
 }
 
-func (m *Machine) decompileVarAccess(fn *Function) {
-	istr := fn.instrs.nextInstruction()
+func (m *Machine) decompileVarAccess(block *BasicBlock) {
+	istr := block.instrs.nextInstruction()
 	op := istr.Operands.(ImmediateIntOperands)
 
 	deRef := false
@@ -346,7 +291,7 @@ func (m *Machine) decompileVarAccess(fn *Function) {
 		deRef = true
 		fallthrough
 	case OpGetLocal:
-		src = fn.Decls.VariableByName(fmt.Sprintf("local_%v", op.Int()))
+		src = block.VariableByName(fmt.Sprintf("local_%v", op.Int()))
 
 	default:
 		fmt.Printf("dont know how to find var\n")
@@ -358,29 +303,29 @@ func (m *Machine) decompileVarAccess(fn *Function) {
 		}
 	}
 
-	fn.pushNode(src)
+	block.pushNode(src)
 }
 
-func (m *Machine) decompileImplode(fn *Function) {
-	_ = fn.instrs.nextInstruction()
-	dest := fn.popNode()
+func (m *Machine) decompileImplode(block *BasicBlock) {
+	_ = block.instrs.nextInstruction()
+	dest := block.popNode()
 
-	length := fn.popNode().(Immediate).Value.(ImmediateIntOperands).Int()
+	length := block.popNode().(Immediate).Value.(ImmediateIntOperands).Int()
 	elems := make(ArrayLiteral, length)
 	for i := range elems {
-		elems[length-i-1] = fn.popNode()
+		elems[length-i-1] = block.popNode()
 	}
 
 	expectedtype := elems[0].(DataTypeable).DataType()
 	dest.(TypeInferrable).InferType(expectedtype)
 
-	fn.emitStatement(AssignStmt{dest, elems})
+	block.emitStatement(AssignStmt{dest, elems})
 }
 
-func (m *Machine) decompileExplode(fn *Function) {
-	_ = fn.instrs.nextInstruction()
-	src := fn.popNode()
-	length := fn.popNode().(Immediate).Value.(ImmediateIntOperands).Int()
+func (m *Machine) decompileExplode(block *BasicBlock) {
+	_ = block.instrs.nextInstruction()
+	src := block.popNode()
+	length := block.popNode().(Immediate).Value.(ImmediateIntOperands).Int()
 
 	// Is it a vec3 that we dont know about?
 	if inferrable, ok := src.(TypeInferrable); ok && length == 3 {
@@ -392,36 +337,22 @@ func (m *Machine) decompileExplode(fn *Function) {
 
 	exploded := srcType.Explode(src, length)
 	for _, n := range exploded {
-		fn.pushNode(n)
+		block.pushNode(n)
 	}
 
 }
 
-func (m *Machine) doExplode(fn *Function, src Node, length int) {
+func (m *Machine) doExplode(block *BasicBlock, src Node, length int) {
 	for i := 0; i < length; i++ {
-		/*
-			tempDecl := VariableDeclaration{
-				Variable: &Variable{
-					Identifier: m.genTempIdentifier(),
-					Type:       UnknownType,
-				},
-				Value: ArrayIndex{
-					Array: src,
-					Index: IntImmediate(uint32(i)),
-				},
-			}
-			fn.emitStatement(tempDecl)
-			fn.pushNode(tempDecl.Variable.Reference())
-		*/
-		fn.pushNode(ArrayIndex{
+		block.pushNode(ArrayIndex{
 			Array: src,
 			Index: IntImmediate(uint32(i)),
 		})
 	}
 }
 
-func (m *Machine) decompileAssignment(fn *Function) {
-	istr := fn.instrs.nextInstruction()
+func (m *Machine) decompileAssignment(block *BasicBlock) {
+	istr := block.instrs.nextInstruction()
 	op := istr.Operands.(ImmediateIntOperands)
 
 	var dest *Variable
@@ -429,28 +360,26 @@ func (m *Machine) decompileAssignment(fn *Function) {
 	case OpSetStatic:
 		dest = m.file.Decls.VariableByName(fmt.Sprintf("static_%v", op.Int()))
 	case OpSetLocal:
-		dest = fn.Decls.VariableByName(fmt.Sprintf("local_%v", op.Int()))
+		dest = block.VariableByName(fmt.Sprintf("local_%v", op.Int()))
 	default:
 		fmt.Printf("dont know how to find var\n")
 	}
 
-	value := fn.popNode()
+	value := block.popNode()
 
 	expectedtype := value.(DataTypeable).DataType()
 	dest.InferType(expectedtype)
 
-	fn.emitStatement(AssignStmt{dest, value})
+	block.emitStatement(AssignStmt{dest, value})
 }
 
-func (m *Machine) decompileMathOp(fn *Function) {
+func (m *Machine) decompileMathOp(block *BasicBlock) {
 	var token Token
-	op := fn.instrs.nextInstruction()
-
-	fmt.Printf("math op is %v\n", op.String())
+	op := block.instrs.nextInstruction()
 
 	// Handle the two unary operations first
 	if op.Operation == OpNot || op.Operation == OpNeg {
-		a := fn.popNode()
+		a := block.popNode()
 
 		if op.Operation == OpNot {
 			token = NotToken
@@ -461,19 +390,18 @@ func (m *Machine) decompileMathOp(fn *Function) {
 		}
 
 		unaryOp := UnaryExpr{token, a}
-		fn.pushNode(unaryOp)
+		block.pushNode(unaryOp)
 		return
 	}
 
 	// The remaining math ops are binary
 	var a, b Node
-	a = fn.popNode()
+	a = block.popNode()
 	if _, ok := op.Operands.(ImmediateIntOperands); ok {
 		// some math ops take an immediate operand in place of a stack operand
 		b = Immediate{op.Operands}
-		fmt.Println("using immediate instead")
 	} else {
-		b = fn.popNode()
+		b = block.popNode()
 	}
 
 	switch op.Operation {
@@ -496,7 +424,7 @@ func (m *Machine) decompileMathOp(fn *Function) {
 	}
 
 	binaryOp := BinaryExpr{a, token, b}
-	fn.pushNode(binaryOp)
+	block.pushNode(binaryOp)
 }
 
 func (m *Machine) genTempIdentifier() string {
