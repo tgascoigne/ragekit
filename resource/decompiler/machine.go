@@ -184,7 +184,7 @@ func (fn *Function) peekNode() Node {
 
 func (m *Machine) decompileStatement(fn *Function) {
 	istr := fn.instrs.peekInstruction()
-	//fn.emitComment("asm(\"%v\")", istr.String())
+	fn.emitComment("asm(\"%v\")", istr.String())
 	op := istr.Operation
 	switch {
 	/* standard stack ops */
@@ -223,6 +223,8 @@ func (m *Machine) decompileStatement(fn *Function) {
 
 	case op == script.OpImplode:
 		m.decompileImplode(fn)
+	case op == script.OpExplode:
+		m.decompileExplode(fn)
 
 	/* control flow */
 	case op == script.OpCall:
@@ -265,7 +267,14 @@ func (m *Machine) decompileCall(fn *Function) {
 
 	args := make([]Node, targetFn.In.Size())
 	for i := range args {
-		args[i] = fn.popNode()
+		thisArg := fn.popNode()
+
+		if inferrable, ok := thisArg.(TypeInferrable); ok {
+			expectedType := targetFn.In.Vars[i].DataType()
+			inferrable.InferType(expectedType)
+		}
+
+		args[targetFn.In.Size()-i-1] = thisArg
 	}
 
 	node = FunctionCall{
@@ -358,6 +367,37 @@ func (m *Machine) decompileImplode(fn *Function) {
 	dest.(TypeInferrable).InferType(expectedtype)
 
 	fn.emitStatement(AssignStmt{dest, elems})
+}
+
+func (m *Machine) decompileExplode(fn *Function) {
+	_ = fn.instrs.nextInstruction()
+	src := fn.popNode()
+
+	length := fn.popNode().(Immediate).Value.(script.ImmediateIntOperands).Int() // ewww
+	m.doExplode(fn, src, length)
+}
+
+func (m *Machine) doExplode(fn *Function, src Node, length int) {
+	for i := 0; i < length; i++ {
+		/*
+			tempDecl := VariableDeclaration{
+				Variable: &Variable{
+					Identifier: m.genTempIdentifier(),
+					Type:       script.UnknownType,
+				},
+				Value: ArrayIndex{
+					Array: src,
+					Index: IntImmediate(uint32(i)),
+				},
+			}
+			fn.emitStatement(tempDecl)
+			fn.pushNode(tempDecl.Variable.Reference())
+		*/
+		fn.pushNode(ArrayIndex{
+			Array: src,
+			Index: IntImmediate(uint32(i)),
+		})
+	}
 }
 
 func (m *Machine) decompileAssignment(fn *Function) {

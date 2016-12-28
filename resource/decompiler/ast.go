@@ -128,6 +128,14 @@ func (i Immediate) CString() string {
 	return i.Value.String()
 }
 
+func IntImmediate(val uint32) Node {
+	return Immediate{
+		&script.Immediate32Operands{
+			Val: val,
+		},
+	}
+}
+
 type Declarations struct {
 	Vars []*VariableDeclaration
 }
@@ -363,4 +371,17 @@ func (arr ArrayLiteral) CString() string {
 		elems[i] = arr[i].CString()
 	}
 	return fmt.Sprintf("{%v}", strings.Join(elems, ", "))
+}
+
+type ArrayIndex struct {
+	Array Node
+	Index Node
+}
+
+func (idx ArrayIndex) DataType() script.Type {
+	return script.UnknownType
+}
+
+func (idx ArrayIndex) CString() string {
+	return fmt.Sprintf("%v[%v]", idx.Array.CString(), idx.Index.CString())
 }
