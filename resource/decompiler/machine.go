@@ -79,6 +79,7 @@ func (m *Machine) scanFunction() Function {
 	enterIstr := m.instrs.nextInstruction()
 	operands := enterIstr.Operands.(*script.EnterOperands)
 
+	function.Address = enterIstr.Address
 	function.Identifier = operands.Name
 	function.Out = &Variable{
 		Identifier: "ERROR",
@@ -223,6 +224,12 @@ func (m *Machine) decompileStatement(fn *Function) {
 	case op == script.OpImplode:
 		m.decompileImplode(fn)
 
+	/* control flow */
+	case op == script.OpCall:
+		m.decompileCall(fn)
+	case op == script.OpCallN:
+		m.decompileCall(fn)
+
 	/* binary ops */
 	case op > script.OpMathStart && op < script.OpMathEnd:
 		m.decompileMathOp(fn)
@@ -241,6 +248,44 @@ func (m *Machine) decompileUnknownOp(fn *Function) {
 		return
 	}
 	fn.emitStatement(AsmStmt{istr.String()})
+}
+
+func (m *Machine) decompileCall(fn *Function) {
+	istr := fn.instrs.nextInstruction()
+
+	var node Node
+	var targetFn *Function
+
+	switch op := istr.Operands.(type) {
+	case *script.CallOperands:
+		targetFn = m.file.FunctionByAddress(op.Val)
+	case *script.CallNOperands:
+		targetFn = m.file.FunctionForNative(m.script.HashTable, op.Native)
+	}
+
+	args := make([]Node, targetFn.In.Size())
+	for i := range args {
+		args[i] = fn.popNode()
+	}
+
+	node = FunctionCall{
+		Fn:   targetFn,
+		Args: args,
+	}
+
+	if targetFn.Out.DataType() != script.VoidType {
+		tempDecl := VariableDeclaration{
+			Variable: &Variable{
+				Identifier: m.genTempIdentifier(),
+				Type:       targetFn.Out.DataType(),
+			},
+			Value: node,
+		}
+		fn.pushNode(tempDecl.Variable.Reference())
+		node = tempDecl
+	}
+
+	fn.emitStatement(node)
 }
 
 func (m *Machine) decompileReturn(fn *Function) {
@@ -394,11 +439,7 @@ func (m *Machine) decompileMathOp(fn *Function) {
 	fn.pushNode(binaryOp)
 }
 
-func (m *Machine) genIdentifier(prefix string) string {
+func (m *Machine) genTempIdentifier() string {
 	m.identifierIdx++
-	return fmt.Sprintf("%v_%v", prefix, m.identifierIdx)
-}
-
-func (m *Machine) genLocalIdentifier() string {
-	return m.genIdentifier("local")
+	return fmt.Sprintf("temp_%v", m.identifierIdx)
 }

@@ -45,7 +45,7 @@ func main() {
 
 	/* Unpack the script at 0x10 */
 	outScript := script.NewScript(path.Base(in_file), uint32(len(data)))
-	if err = outScript.LoadHashDictionary("./natives.json"); err != nil {
+	if err = outScript.LoadNativeDB("./natives.json", "./native_translation.dat"); err != nil {
 		log.Printf("Unable to load hash dictionary (%v). Lookups will be unavailable\n", err)
 	}
 

@@ -70,7 +70,7 @@ type Script struct {
 	StringTable  []byte
 	Code         []*Instruction
 	VM           VM
-	HashTable    *HashTable
+	HashTable    *NativeDB
 }
 
 func NewScript(filename string, filesize uint32) *Script {
@@ -80,7 +80,7 @@ func NewScript(filename string, filesize uint32) *Script {
 	}
 }
 
-func (script *Script) HashLookup(hash Native64) ([]string, bool) {
+func (script *Script) NativeLookup(hash Native64) ([]string, bool) {
 	if script.HashTable == nil {
 		return nil, false
 	}
@@ -93,9 +93,14 @@ func (script *Script) HashLookup(hash Native64) ([]string, bool) {
 	return []string{entry.Name}, true
 }
 
-func (script *Script) LoadHashDictionary(dictPath string) error {
+func (script *Script) LoadNativeDB(dictPath, xlatePath string) error {
 	var err error
 	script.HashTable, err = LoadNatives(dictPath)
+	if err != nil {
+		return err
+	}
+
+	err = script.HashTable.LoadTranslations(xlatePath)
 	if err != nil {
 		return err
 	}
@@ -128,7 +133,10 @@ func (script *Script) Unpack(res *resource.Container, emitFn EmitFunc) (err erro
 		count := script.Header.NativeCount
 		script.NativeTable = make([]Native64, count)
 		for i := 0; i < int(count); i++ {
-			res.Parse(&script.NativeTable[i])
+			var mangledNative Native64
+			res.Parse(&mangledNative)
+			script.NativeTable[i] = mangledNative.unmangle(script.Header.CodeLength, i)
+			//fmt.Printf("native %v is %x (%x)\n", i, script.NativeTable[i], mangledNative)
 		}
 		return nil
 	})

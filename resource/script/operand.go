@@ -98,10 +98,11 @@ var OperandFunc = map[uint8]InitOperandFunc{
 type Type string
 
 const (
-	VoidType   Type = "void"
-	IntType    Type = "int"
-	FloatType  Type = "float"
-	StringType Type = "char*"
+	UnknownType Type = "unknown32"
+	VoidType    Type = "void"
+	IntType     Type = "int"
+	FloatType   Type = "float"
+	StringType  Type = "char*"
 )
 
 func (t Type) CString() string {
@@ -309,13 +310,13 @@ func (op *CallNOperands) Unpack(istr *Instruction, script *Script, res *resource
 	res.ParseBigEndian(&nativeIndex)
 
 	op.Native = script.NativeTable[nativeIndex]
-	if nativeStrs, ok := script.HashLookup(op.Native); ok {
+	if nativeStrs, ok := script.NativeLookup(op.Native); ok {
 		op.NativeStrs = nativeStrs
 	} else {
 		op.NativeStrs = []string{"unknown"}
 	}
 
-	op.InSize = (nativeOperand >> 2) & 0x3
+	op.InSize = (nativeOperand >> 2)
 	op.OutSize = nativeOperand & 0x3
 }
 

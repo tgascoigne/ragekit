@@ -128,7 +128,7 @@ var OpType = map[uint8]uint8{
 	47:  OpGetP,
 	48:  OpSetP,
 	49:  OpSetPPeek,
-	50:  OpExplode,
+	50:  OpExplode, //tostack
 	51:  OpImplode,
 	52:  OpArrayGetP,
 	53:  OpArrayGet,

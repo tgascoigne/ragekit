@@ -5,6 +5,7 @@ import (
 	"compress/flate"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -296,10 +297,12 @@ func (pkg *Package) decryptTOC(ctx *crypto.Context) error {
 	//	pkg.blocksPtr = pkg.namesPtr + types.Ptr32(pkg.Header.NamesLength)
 	//	fmt.Printf("block ptr is %v\n", pkg.blocksPtr)
 
+	fmt.Printf("encryption is %v\n", pkg.Header.Encryption)
 	if pkg.Header.Encryption == EncNone {
 		// nothing to do
 	} else if pkg.Header.Encryption == EncAES {
 		// AES
+		fmt.Printf("decrypting aes\n")
 		err := pkg.Detour(pkg.entriesPtr, func() error {
 			return pkg.Decrypt(ctx, entriesTotalBytes)
 		})
@@ -318,6 +321,7 @@ func (pkg *Package) decryptTOC(ctx *crypto.Context) error {
 
 	} else {
 		// NG
+		fmt.Printf("decrypting ng\n")
 		err := pkg.Detour(pkg.entriesPtr, func() error {
 			return pkg.DecryptPackageNG(ctx, entriesTotalBytes)
 		})

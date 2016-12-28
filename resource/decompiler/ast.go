@@ -42,6 +42,52 @@ type File struct {
 	Nodes     []Node
 }
 
+func (f File) FunctionByName(identifier string) *Function {
+	for _, fn := range f.Functions {
+		if fn.Identifier == identifier {
+			return fn
+		}
+	}
+
+	panic(fmt.Sprintf("unknown function: ", identifier))
+}
+
+func (f File) FunctionByAddress(addr uint32) *Function {
+	for _, fn := range f.Functions {
+		if fn.Address == addr {
+			return fn
+		}
+	}
+
+	panic(fmt.Sprintf("unknown function with address: %x", addr))
+}
+
+func (f File) FunctionForNative(db *script.NativeDB, native script.Native64) *Function {
+	spec := db.LookupNative(native)
+	if spec == nil {
+		panic(fmt.Sprintf("unknown function with hash: %x", native))
+	}
+
+	fn := &Function{
+		Identifier: spec.Name,
+		Out: &Variable{
+			Identifier: "ERROR",
+			Type:       spec.Results,
+		},
+	}
+
+	for _, param := range spec.Params {
+		fn.In.AddVariable(&VariableDeclaration{
+			Variable: &Variable{
+				Identifier: param.Name,
+				Type:       param.Type,
+			},
+		})
+	}
+
+	return fn
+}
+
 func (f File) CString() string {
 	buf := new(bytes.Buffer)
 
@@ -84,6 +130,10 @@ func (i Immediate) CString() string {
 
 type Declarations struct {
 	Vars []*VariableDeclaration
+}
+
+func (d *Declarations) Size() int {
+	return len(d.Vars)
 }
 
 func (d *Declarations) AddVariable(decl *VariableDeclaration) {
@@ -173,7 +223,11 @@ type VariableDeclaration struct {
 
 func (d VariableDeclaration) CString() string {
 	if d.Value != nil {
-		return fmt.Sprintf("%v %v = %v", d.Type, d.Identifier, d.Value)
+		valueStr := fmt.Sprintf("%v", d.Value)
+		if val, ok := d.Value.(CStringer); ok {
+			valueStr = val.CString()
+		}
+		return fmt.Sprintf("%v %v = %v", d.Type, d.Identifier, valueStr)
 	} else {
 		return fmt.Sprintf("%v %v", d.Type, d.Identifier)
 	}
@@ -186,6 +240,7 @@ type Function struct {
 	Out        *Variable
 	Decls      Declarations
 	Statements []Node
+	Address    uint32
 
 	instrs *Instructions
 
@@ -271,6 +326,10 @@ func (expr DeRefExpr) InferType(typ script.Type) {
 	expr.Node.(*Variable).InferType(typ)
 }
 
+func (expr DeRefExpr) DataType() script.Type {
+	return expr.Node.(*Variable).DataType()
+}
+
 // An AsmExpr performs inline assembly
 type AsmStmt struct {
 	Asm string
@@ -280,6 +339,22 @@ func (expr AsmStmt) CString() string {
 	return fmt.Sprintf("asm(\"%v\")", expr.Asm)
 }
 
+// A FuntionCall is an invocation of a local function
+type FunctionCall struct {
+	Fn   *Function
+	Args []Node
+}
+
+func (fc FunctionCall) CString() string {
+	elems := make([]string, len(fc.Args))
+	for i := range elems {
+		elems[i] = fc.Args[i].CString()
+	}
+
+	return fmt.Sprintf("%v(%v)", fc.Fn.Identifier, strings.Join(elems, ", "))
+}
+
+// An ArrayLiteral is a literal representation of an array
 type ArrayLiteral []Node
 
 func (arr ArrayLiteral) CString() string {

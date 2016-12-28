@@ -1,6 +1,8 @@
 package resource
 
 import (
+	"fmt"
+
 	"github.com/tgascoigne/ragekit/resource/crypto"
 	"github.com/tgascoigne/ragekit/resource/types"
 	"github.com/tgascoigne/ragekit/util/stack"
@@ -70,6 +72,8 @@ func (pkg *Package) Unpack(data []byte, filename string, filesize uint32) error 
 	pkg.entries = make([]PackageNode, pkg.Header.EntryCount)
 	pkg.entriesVisited = make([]bool, pkg.Header.EntryCount)
 
+	fmt.Printf("header %#v\n", pkg.Header)
+
 	for i := uint32(0); i < pkg.Header.EntryCount; i++ {
 		entry, err := pkg.parseEntry()
 		if err != nil {
@@ -77,6 +81,7 @@ func (pkg *Package) Unpack(data []byte, filename string, filesize uint32) error 
 		}
 
 		pkg.entries[i] = entry
+		fmt.Printf("entry %v %#v\n", i, entry)
 	}
 
 	return nil
