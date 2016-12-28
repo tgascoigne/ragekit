@@ -104,6 +104,7 @@ func (script *Script) LoadNativeDB(dictPath, xlatePath string) error {
 		return err
 	}
 
+	fmt.Println("loaded native db")
 	return nil
 }
 
@@ -133,7 +134,7 @@ func (script *Script) Unpack(res *resource.Container, emitFn EmitFunc) (err erro
 			var mangledNative Native64
 			res.Parse(&mangledNative)
 			script.NativeTable[i] = mangledNative.unmangle(script.Header.CodeLength, i)
-			//fmt.Printf("native %v is %x (%x)\n", i, script.NativeTable[i], mangledNative)
+			//fmt.Printf("native %v is %x (%x)\n", i, NativeTable[i], mangledNative)
 		}
 		return nil
 	})

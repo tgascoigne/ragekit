@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/tgascoigne/ragekit/resource"
-	"github.com/tgascoigne/ragekit/resource/decompiler"
 	"github.com/tgascoigne/ragekit/resource/script"
 )
 
@@ -59,36 +58,36 @@ func main() {
 		log.Fatal(err)
 	}
 
-	decompileMachine := decompiler.NewMachine(outScript, code)
+	decompileMachine := script.NewMachine(outScript, code)
 	file := decompileMachine.Decompile()
 	fmt.Println(file.CString())
 
 	/*
-			in1Var := decompiler.Variable{
+			in1Var := script.Variable{
 				Identifier: "a",
-				Type:       decompiler.Uint32Type,
+				Type:       script.Uint32Type,
 			}
 
-			in2Var := decompiler.Variable{
+			in2Var := script.Variable{
 				Identifier: "b",
-				Type:       decompiler.Uint32Type,
+				Type:       script.Uint32Type,
 			}
 
-			resultVar := decompiler.Variable{
+			resultVar := script.Variable{
 				Identifier: "result",
-				Type:       decompiler.Uint32Type,
+				Type:       script.Uint32Type,
 			}
 
-			fn := decompiler.Function{
+			fn := script.Function{
 				Identifier: "add",
-				In: []decompiler.Variable{
+				In: []script.Variable{
 					in1Var, in2Var,
 				},
 				Out: resultVar,
-				Statements: []decompiler.Node{
+				Statements: []script.Node{
 					resultVar.Declaration(),
-					decompiler.AssignStmt{resultVar, decompiler.BinaryExpr{in1Var, decompiler.AddToken, in2Var}},
-					decompiler.ReturnStmt{resultVar},
+					script.AssignStmt{resultVar, script.BinaryExpr{in1Var, script.AddToken, in2Var}},
+					script.ReturnStmt{resultVar},
 				},
 			}
 		fmt.Println(fn.CString())

@@ -1,20 +1,16 @@
-package decompiler
+package script
 
-import (
-	"fmt"
-
-	"github.com/tgascoigne/ragekit/resource/script"
-)
+import "fmt"
 
 type Machine struct {
 	file   *File
-	script *script.Script
+	script *Script
 	instrs *Instructions
 
 	identifierIdx int
 }
 
-func NewMachine(script *script.Script, code []script.Instruction) *Machine {
+func NewMachine(script *Script, code []Instruction) *Machine {
 	return &Machine{
 		instrs: &Instructions{
 			code: code,
@@ -30,7 +26,7 @@ func (m *Machine) createStaticDecls() {
 	for i, v := range statics {
 		staticVar := Variable{
 			Identifier: fmt.Sprintf("static_%v", i),
-			Type:       script.IntType,
+			Type:       IntType,
 		}
 
 		var staticDecl *VariableDeclaration
@@ -53,10 +49,10 @@ func (m *Machine) Decompile() File {
 		istr := m.instrs.peekInstruction()
 
 		switch istr.Operation {
-		case script.OpEnter:
+		case OpEnter:
 			newFunc := m.scanFunction()
 			m.file.Functions = append(m.file.Functions, &newFunc)
-		case script.OpNop:
+		case OpNop:
 
 		default:
 			panic(fmt.Sprintf("unexpected instruction %v\n", istr))
@@ -77,20 +73,20 @@ func (m *Machine) scanFunction() Function {
 	}
 
 	enterIstr := m.instrs.nextInstruction()
-	operands := enterIstr.Operands.(*script.EnterOperands)
+	operands := enterIstr.Operands.(*EnterOperands)
 
 	function.Address = enterIstr.Address
 	function.Identifier = operands.Name
 	function.Out = &Variable{
 		Identifier: "ERROR",
-		Type:       script.VoidType,
+		Type:       VoidType,
 	}
 
 	// Create arg decls
 	for i := 0; i < int(operands.NumArgs); i++ {
 		arg := &Variable{
 			Identifier: fmt.Sprintf("local_%v", i),
-			Type:       script.IntType, /* FIXME types */
+			Type:       IntType, /* FIXME types */
 		}
 		function.In.AddVariable(arg.Declaration())
 		function.Decls.AddVariable(arg.Declaration())
@@ -100,7 +96,7 @@ func (m *Machine) scanFunction() Function {
 	for i := int(operands.NumArgs); i < int(operands.NumLocals); i++ {
 		local := &Variable{
 			Identifier: fmt.Sprintf("local_%v", i),
-			Type:       script.IntType, /* FIXME types */
+			Type:       IntType, /* FIXME types */
 		}
 		function.Decls.AddVariable(local.Declaration())
 	}
@@ -108,14 +104,14 @@ func (m *Machine) scanFunction() Function {
 	// Scan for RETs and copy the instructions in this function into a new buffer
 	for !m.instrs.isEOF() {
 		nextIstr := m.instrs.peekInstruction()
-		if nextIstr.Operation == script.OpEnter {
+		if nextIstr.Operation == OpEnter {
 			break
 		}
 
 		function.instrs.append(nextIstr)
 		m.instrs.nextInstruction()
 
-		if nextIstr.Operation == script.OpRet {
+		if nextIstr.Operation == OpRet {
 			function.inferReturnType(nextIstr)
 		}
 	}
@@ -123,14 +119,14 @@ func (m *Machine) scanFunction() Function {
 	return function
 }
 
-func (fn *Function) inferReturnType(ret script.Instruction) {
+func (fn *Function) inferReturnType(ret Instruction) {
 	retVar := fn.Out
-	op := ret.Operands.(*script.RetOperands)
+	op := ret.Operands.(*RetOperands)
 	if op.NumReturnVals == 0 {
-		retVar.InferType(script.VoidType)
+		retVar.InferType(VoidType)
 	} else if op.NumReturnVals == 1 {
 		retVal := fn.peekNode()
-		retVar.InferType(retVal.(script.DataTypeable).DataType())
+		retVar.InferType(retVal.(DataTypeable).DataType())
 	} else {
 		panic("unable to infer return value of function")
 	}
@@ -162,7 +158,7 @@ func (fn *Function) pushNode(node Node) {
 func (fn *Function) popNode() Node {
 	if fn.nodeStackIdx <= 0 {
 		fmt.Println("node stack underflow")
-		return Immediate{&script.Immediate32Operands{Val: 0xBABE}}
+		return Immediate{&Immediate32Operands{Val: 0xBABE}}
 	}
 
 	node := fn.peekNode()
@@ -176,7 +172,7 @@ func (fn *Function) peekNode() Node {
 	if fn.nodeStackIdx <= 0 {
 		//		fmt.Printf("peek %v\n", fn.nodeStackIdx)
 		fmt.Println("node stack underflow")
-		return Immediate{&script.Immediate32Operands{Val: 0xBABE}}
+		return Immediate{&Immediate32Operands{Val: 0xBABE}}
 	}
 
 	return fn.nodeStack[fn.nodeStackIdx-1]
@@ -188,55 +184,55 @@ func (m *Machine) decompileStatement(fn *Function) {
 	op := istr.Operation
 	switch {
 	/* standard stack ops */
-	case op == script.OpPush:
+	case op == OpPush:
 		fallthrough
-	case op == script.OpPushStr:
+	case op == OpPushStr:
 		fallthrough
-	case op == script.OpPushStrN:
+	case op == OpPushStrN:
 		fallthrough
-	case op == script.OpPushStrL:
+	case op == OpPushStrL:
 		fn.pushNode(Immediate{istr.Operands})
 		fn.instrs.nextInstruction()
-	case op == script.OpDrop:
+	case op == OpDrop:
 		fn.popNode()
 		fn.instrs.nextInstruction()
-	case op == script.OpDup:
+	case op == OpDup:
 		duped := fn.peekNode()
 		fn.pushNode(duped)
 		fn.instrs.nextInstruction()
 
 	/* variable access ops */
-	case op == script.OpGetStaticP:
+	case op == OpGetStaticP:
 		fallthrough
-	case op == script.OpGetStatic:
+	case op == OpGetStatic:
 		m.decompileVarAccess(fn)
-	case op == script.OpGetLocalP:
+	case op == OpGetLocalP:
 		fallthrough
-	case op == script.OpGetLocal:
+	case op == OpGetLocal:
 		m.decompileVarAccess(fn)
 
 	/* assignment ops */
-	case op == script.OpSetLocal:
+	case op == OpSetLocal:
 		fallthrough
-	case op == script.OpSetStatic:
+	case op == OpSetStatic:
 		m.decompileAssignment(fn)
 
-	case op == script.OpImplode:
+	case op == OpImplode:
 		m.decompileImplode(fn)
-	case op == script.OpExplode:
+	case op == OpExplode:
 		m.decompileExplode(fn)
 
 	/* control flow */
-	case op == script.OpCall:
+	case op == OpCall:
 		m.decompileCall(fn)
-	case op == script.OpCallN:
+	case op == OpCallN:
 		m.decompileCall(fn)
 
 	/* binary ops */
-	case op > script.OpMathStart && op < script.OpMathEnd:
+	case op > OpMathStart && op < OpMathEnd:
 		m.decompileMathOp(fn)
 
-	case op == script.OpRet:
+	case op == OpRet:
 		m.decompileReturn(fn)
 
 	default:
@@ -246,7 +242,7 @@ func (m *Machine) decompileStatement(fn *Function) {
 
 func (m *Machine) decompileUnknownOp(fn *Function) {
 	istr := fn.instrs.nextInstruction()
-	if istr.Operation == script.OpNop {
+	if istr.Operation == OpNop {
 		return
 	}
 	fn.emitStatement(AsmStmt{istr.String()})
@@ -259,22 +255,23 @@ func (m *Machine) decompileCall(fn *Function) {
 	var targetFn *Function
 
 	switch op := istr.Operands.(type) {
-	case *script.CallOperands:
+	case *CallOperands:
 		targetFn = m.file.FunctionByAddress(op.Val)
-	case *script.CallNOperands:
+	case *CallNOperands:
 		targetFn = m.file.FunctionForNative(m.script.HashTable, op.Native)
 	}
 
 	args := make([]Node, targetFn.In.Size())
 	for i := range args {
 		thisArg := fn.popNode()
+		argIdx := targetFn.In.Size() - i - 1
 
 		if inferrable, ok := thisArg.(TypeInferrable); ok {
-			expectedType := targetFn.In.Vars[i].DataType()
+			expectedType := targetFn.In.Vars[argIdx].DataType()
 			inferrable.InferType(expectedType)
 		}
 
-		args[targetFn.In.Size()-i-1] = thisArg
+		args[argIdx] = thisArg
 	}
 
 	node = FunctionCall{
@@ -282,7 +279,8 @@ func (m *Machine) decompileCall(fn *Function) {
 		Args: args,
 	}
 
-	if targetFn.Out.DataType() != script.VoidType {
+	outSize := targetFn.Out.DataType().StackSize()
+	if outSize > 0 {
 		tempDecl := VariableDeclaration{
 			Variable: &Variable{
 				Identifier: m.genTempIdentifier(),
@@ -290,7 +288,18 @@ func (m *Machine) decompileCall(fn *Function) {
 			},
 			Value: node,
 		}
-		fn.pushNode(tempDecl.Variable.Reference())
+
+		resultRef := tempDecl.Variable.Reference()
+		if outSize > 1 {
+			outType := targetFn.Out.DataType().(ComplexType)
+			exploded := outType.Explode(resultRef, outType.StackSize())
+			for _, n := range exploded {
+				fn.pushNode(n)
+			}
+		} else {
+			fn.pushNode(resultRef)
+		}
+
 		node = tempDecl
 	}
 
@@ -299,16 +308,16 @@ func (m *Machine) decompileCall(fn *Function) {
 
 func (m *Machine) decompileReturn(fn *Function) {
 	istr := fn.instrs.nextInstruction()
-	op := istr.Operands.(*script.RetOperands)
+	op := istr.Operands.(*RetOperands)
 
 	retVar := fn.Out
 
 	if op.NumReturnVals == 0 {
-		retVar.InferType(script.VoidType)
+		retVar.InferType(VoidType)
 		fn.emitStatement(ReturnStmt{nil})
 	} else if op.NumReturnVals == 1 {
 		retVal := fn.peekNode()
-		retVar.InferType(retVal.(script.DataTypeable).DataType())
+		retVar.InferType(retVal.(DataTypeable).DataType())
 
 		if v, ok := retVal.(*Variable); ok {
 			retVal = v.Reference()
@@ -322,21 +331,21 @@ func (m *Machine) decompileReturn(fn *Function) {
 
 func (m *Machine) decompileVarAccess(fn *Function) {
 	istr := fn.instrs.nextInstruction()
-	op := istr.Operands.(script.ImmediateIntOperands)
+	op := istr.Operands.(ImmediateIntOperands)
 
 	deRef := false
 	var src Node
 	switch istr.Operation {
-	case script.OpGetStaticP:
+	case OpGetStaticP:
 		deRef = true
 		fallthrough
-	case script.OpGetStatic:
+	case OpGetStatic:
 		src = m.file.Decls.VariableByName(fmt.Sprintf("static_%v", op.Int()))
 
-	case script.OpGetLocalP:
+	case OpGetLocalP:
 		deRef = true
 		fallthrough
-	case script.OpGetLocal:
+	case OpGetLocal:
 		src = fn.Decls.VariableByName(fmt.Sprintf("local_%v", op.Int()))
 
 	default:
@@ -356,14 +365,13 @@ func (m *Machine) decompileImplode(fn *Function) {
 	_ = fn.instrs.nextInstruction()
 	dest := fn.popNode()
 
-	length := fn.popNode().(Immediate).Value.(script.ImmediateIntOperands).Int() // ewww
+	length := fn.popNode().(Immediate).Value.(ImmediateIntOperands).Int()
 	elems := make(ArrayLiteral, length)
 	for i := range elems {
 		elems[length-i-1] = fn.popNode()
 	}
 
-	// FIXME need array types
-	expectedtype := elems[0].(script.DataTypeable).DataType()
+	expectedtype := elems[0].(DataTypeable).DataType()
 	dest.(TypeInferrable).InferType(expectedtype)
 
 	fn.emitStatement(AssignStmt{dest, elems})
@@ -372,9 +380,21 @@ func (m *Machine) decompileImplode(fn *Function) {
 func (m *Machine) decompileExplode(fn *Function) {
 	_ = fn.instrs.nextInstruction()
 	src := fn.popNode()
+	length := fn.popNode().(Immediate).Value.(ImmediateIntOperands).Int()
 
-	length := fn.popNode().(Immediate).Value.(script.ImmediateIntOperands).Int() // ewww
-	m.doExplode(fn, src, length)
+	// Is it a vec3 that we dont know about?
+	if inferrable, ok := src.(TypeInferrable); ok && length == 3 {
+		inferrable.InferType(GetType("Vector3"))
+	}
+
+	// eww
+	srcType := src.(DataTypeable).DataType().(ComplexType)
+
+	exploded := srcType.Explode(src, length)
+	for _, n := range exploded {
+		fn.pushNode(n)
+	}
+
 }
 
 func (m *Machine) doExplode(fn *Function, src Node, length int) {
@@ -383,7 +403,7 @@ func (m *Machine) doExplode(fn *Function, src Node, length int) {
 			tempDecl := VariableDeclaration{
 				Variable: &Variable{
 					Identifier: m.genTempIdentifier(),
-					Type:       script.UnknownType,
+					Type:       UnknownType,
 				},
 				Value: ArrayIndex{
 					Array: src,
@@ -402,13 +422,13 @@ func (m *Machine) doExplode(fn *Function, src Node, length int) {
 
 func (m *Machine) decompileAssignment(fn *Function) {
 	istr := fn.instrs.nextInstruction()
-	op := istr.Operands.(script.ImmediateIntOperands)
+	op := istr.Operands.(ImmediateIntOperands)
 
 	var dest *Variable
 	switch istr.Operation {
-	case script.OpSetStatic:
+	case OpSetStatic:
 		dest = m.file.Decls.VariableByName(fmt.Sprintf("static_%v", op.Int()))
-	case script.OpSetLocal:
+	case OpSetLocal:
 		dest = fn.Decls.VariableByName(fmt.Sprintf("local_%v", op.Int()))
 	default:
 		fmt.Printf("dont know how to find var\n")
@@ -416,7 +436,7 @@ func (m *Machine) decompileAssignment(fn *Function) {
 
 	value := fn.popNode()
 
-	expectedtype := value.(script.DataTypeable).DataType()
+	expectedtype := value.(DataTypeable).DataType()
 	dest.InferType(expectedtype)
 
 	fn.emitStatement(AssignStmt{dest, value})
@@ -429,14 +449,14 @@ func (m *Machine) decompileMathOp(fn *Function) {
 	fmt.Printf("math op is %v\n", op.String())
 
 	// Handle the two unary operations first
-	if op.Operation == script.OpNot || op.Operation == script.OpNeg {
+	if op.Operation == OpNot || op.Operation == OpNeg {
 		a := fn.popNode()
 
-		if op.Operation == script.OpNot {
+		if op.Operation == OpNot {
 			token = NotToken
 		}
 
-		if op.Operation == script.OpNeg {
+		if op.Operation == OpNeg {
 			token = NegToken
 		}
 
@@ -448,7 +468,7 @@ func (m *Machine) decompileMathOp(fn *Function) {
 	// The remaining math ops are binary
 	var a, b Node
 	a = fn.popNode()
-	if _, ok := op.Operands.(script.ImmediateIntOperands); ok {
+	if _, ok := op.Operands.(ImmediateIntOperands); ok {
 		// some math ops take an immediate operand in place of a stack operand
 		b = Immediate{op.Operands}
 		fmt.Println("using immediate instead")
@@ -457,21 +477,21 @@ func (m *Machine) decompileMathOp(fn *Function) {
 	}
 
 	switch op.Operation {
-	case script.OpAdd:
+	case OpAdd:
 		token = AddToken
-	case script.OpSub:
+	case OpSub:
 		token = SubToken
-	case script.OpMul:
+	case OpMul:
 		token = MulToken
-	case script.OpDiv:
+	case OpDiv:
 		token = DivToken
-	case script.OpMod:
+	case OpMod:
 		token = ModToken
-	case script.OpAnd:
+	case OpAnd:
 		token = AndToken
-	case script.OpOr:
+	case OpOr:
 		token = OrToken
-	case script.OpXor:
+	case OpXor:
 		token = XorToken
 	}
 

@@ -1,11 +1,9 @@
-package decompiler
+package script
 
 import (
 	"bytes"
 	"fmt"
 	"strings"
-
-	"github.com/tgascoigne/ragekit/resource/script"
 )
 
 // Tokens
@@ -62,7 +60,7 @@ func (f File) FunctionByAddress(addr uint32) *Function {
 	panic(fmt.Sprintf("unknown function with address: %x", addr))
 }
 
-func (f File) FunctionForNative(db *script.NativeDB, native script.Native64) *Function {
+func (f File) FunctionForNative(db *NativeDB, native Native64) *Function {
 	spec := db.LookupNative(native)
 	if spec == nil {
 		panic(fmt.Sprintf("unknown function with hash: %x", native))
@@ -101,7 +99,7 @@ func (f File) CString() string {
 }
 
 type TypeInferrable interface {
-	InferType(typ script.Type)
+	InferType(typ Type)
 }
 
 // A Node is an element in the C AST
@@ -117,11 +115,11 @@ func (c Comment) CString() string {
 
 // An Immediate is a plain old immediate value
 type Immediate struct {
-	Value script.Operands /* We expect this to be one of the immediate operands.. */
+	Value Operands /* We expect this to be one of the immediate operands.. */
 }
 
-func (i Immediate) DataType() script.Type {
-	return i.Value.(script.DataTypeable).DataType()
+func (i Immediate) DataType() Type {
+	return i.Value.(DataTypeable).DataType()
 }
 
 func (i Immediate) CString() string {
@@ -130,7 +128,7 @@ func (i Immediate) CString() string {
 
 func IntImmediate(val uint32) Node {
 	return Immediate{
-		&script.Immediate32Operands{
+		&Immediate32Operands{
 			Val: val,
 		},
 	}
@@ -170,7 +168,7 @@ func (d *Declarations) CString() string {
 // A Variable is an assignable memory location
 type Variable struct {
 	Identifier string
-	Type       script.Type
+	Type       Type
 
 	typeInferred bool
 }
@@ -199,14 +197,14 @@ func (v *Variable) DeclarationWithValue(value interface{}) *VariableDeclaration 
 	}
 }
 
-func (v *Variable) DataType() script.Type {
+func (v *Variable) DataType() Type {
 	return v.Type
 }
 
-func (v *Variable) InferType(typ script.Type) {
-	if v.typeInferred && typ != v.Type {
-		fmt.Printf("type of variable %v ambiguous", v.Identifier)
-		return
+func (v *Variable) InferType(typ Type) {
+	if v.typeInferred && typ.CString() != v.Type.CString() {
+		fmt.Printf("WARNING: type of variable %v ambiguous\n", v.Identifier)
+		//return
 	}
 
 	fmt.Printf("inferring type %v = %v\n", v.Identifier, typ)
@@ -235,9 +233,9 @@ func (d VariableDeclaration) CString() string {
 		if val, ok := d.Value.(CStringer); ok {
 			valueStr = val.CString()
 		}
-		return fmt.Sprintf("%v %v = %v", d.Type, d.Identifier, valueStr)
+		return fmt.Sprintf("%v %v = %v", d.Type.CString(), d.Identifier, valueStr)
 	} else {
-		return fmt.Sprintf("%v %v", d.Type, d.Identifier)
+		return fmt.Sprintf("%v %v", d.Type.CString(), d.Identifier)
 	}
 }
 
@@ -252,7 +250,7 @@ type Function struct {
 
 	instrs *Instructions
 
-	retInstrs []script.RetOperands
+	retInstrs []RetOperands
 
 	nodeStack    []Node
 	nodeStackIdx int
@@ -300,8 +298,8 @@ type BinaryExpr struct {
 	Right Node
 }
 
-func (expr BinaryExpr) DataType() script.Type {
-	return expr.Left.(script.DataTypeable).DataType()
+func (expr BinaryExpr) DataType() Type {
+	return expr.Left.(DataTypeable).DataType()
 }
 
 func (expr BinaryExpr) CString() string {
@@ -314,8 +312,8 @@ type UnaryExpr struct {
 	Node Node
 }
 
-func (expr UnaryExpr) DataType() script.Type {
-	return expr.Node.(script.DataTypeable).DataType()
+func (expr UnaryExpr) DataType() Type {
+	return expr.Node.(DataTypeable).DataType()
 }
 
 func (expr UnaryExpr) CString() string {
@@ -330,11 +328,11 @@ func (expr DeRefExpr) CString() string {
 	return UnaryExpr{Op: DeRefToken, Node: expr.Node}.CString()
 }
 
-func (expr DeRefExpr) InferType(typ script.Type) {
+func (expr DeRefExpr) InferType(typ Type) {
 	expr.Node.(*Variable).InferType(typ)
 }
 
-func (expr DeRefExpr) DataType() script.Type {
+func (expr DeRefExpr) DataType() Type {
 	return expr.Node.(*Variable).DataType()
 }
 
@@ -378,10 +376,27 @@ type ArrayIndex struct {
 	Index Node
 }
 
-func (idx ArrayIndex) DataType() script.Type {
-	return script.UnknownType
+func (idx ArrayIndex) DataType() Type {
+	return UnknownType
 }
 
 func (idx ArrayIndex) CString() string {
 	return fmt.Sprintf("%v[%v]", idx.Array.CString(), idx.Index.CString())
+}
+
+type StructField struct {
+	Struct Node
+	Field  *Variable
+}
+
+func (s StructField) DataType() Type {
+	return s.Field.DataType()
+}
+
+func (s StructField) CString() string {
+	return fmt.Sprintf("%v.%v", s.Struct.CString(), s.Field.CString())
+}
+
+func (s StructField) InferType(typ Type) {
+	s.Field.InferType(typ)
 }

@@ -1,19 +1,17 @@
-package decompiler
-
-import "github.com/tgascoigne/ragekit/resource/script"
+package script
 
 type Instructions struct {
-	code []script.Instruction
+	code []Instruction
 	idx  int
 }
 
-func (s *Instructions) nextInstruction() script.Instruction {
+func (s *Instructions) nextInstruction() Instruction {
 	istr := s.peekInstruction()
 	s.idx++
 	return istr
 }
 
-func (s *Instructions) peekInstruction() script.Instruction {
+func (s *Instructions) peekInstruction() Instruction {
 	if s.idx > len(s.code) {
 		panic("eof when peeking instruction")
 	}
@@ -25,7 +23,7 @@ func (s *Instructions) reset() {
 	s.idx = 0
 }
 
-func (s *Instructions) append(istr script.Instruction) {
+func (s *Instructions) append(istr Instruction) {
 	s.code = append(s.code, istr)
 }
 

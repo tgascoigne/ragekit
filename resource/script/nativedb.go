@@ -27,10 +27,12 @@ type NativeSpec struct {
 	Jhash  string `json:"jhash"`
 	Name   string `json:"name"`
 	Params []struct {
-		Name string `json:"name"`
-		Type Type   `json:"type"`
+		Name       string `json:"name"`
+		Type       Type   `json:"-"`
+		TypeString string `json:"type"`
 	} `json:"params"`
-	Results Type `json:"results"`
+	Results       Type   `json:"-"`
+	ResultsString string `json:"results"`
 }
 
 type NativeDB struct {
@@ -57,6 +59,11 @@ func LoadNatives(path string) (*NativeDB, error) {
 			hash, err := strconv.ParseUint(hashStr[2:], 16, 64)
 			if err != nil {
 				return nil, err
+			}
+
+			entry.Results = GetType(entry.ResultsString)
+			for i := range entry.Params {
+				entry.Params[i].Type = GetType(entry.Params[i].TypeString)
 			}
 
 			table.table[Native64(hash)] = entry
