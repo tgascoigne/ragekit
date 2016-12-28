@@ -69,7 +69,6 @@ type Script struct {
 	StaticValues []uint64
 	StringTable  []byte
 	Code         []*Instruction
-	VM           VM
 	HashTable    *NativeDB
 }
 
@@ -112,8 +111,6 @@ type EmitFunc func(Instruction)
 
 func (script *Script) Unpack(res *resource.Container, emitFn EmitFunc) (err error) {
 	res.Parse(&script.Header)
-
-	script.VM.Init(script)
 
 	/* parse the static initializers */
 	err = res.Detour(script.Header.StaticTable, func() error {
@@ -248,8 +245,6 @@ func (script *Script) disassembleBlock(base uint32, res *resource.Container, emi
 		} else {
 			istr.Operands = &NoOperands{}
 		}
-
-		script.VM.Execute(istr)
 
 		emitFn(*istr)
 	}
