@@ -49,6 +49,34 @@ func (s StructType) Explode(v Node, length int) []Node {
 	return result
 }
 
+type ArrayType struct {
+	BaseType Type
+	NumElems int
+}
+
+func (t ArrayType) CString() string {
+	return PtrType{t.BaseType}.CString()
+}
+
+func (t ArrayType) StackSize() int {
+	return t.NumElems
+}
+
+func (t ArrayType) Explode(v Node, length int) []Node {
+	result := make([]Node, 0)
+	for i := 0; i < length; i++ {
+		var node Node
+		node = ArrayIndex{
+			Array: t,
+			Index: IntImmediate(uint32(i)),
+		}
+
+		result = append(result, node)
+	}
+
+	return result
+}
+
 type PtrType struct {
 	BaseType Type
 }
@@ -59,6 +87,10 @@ func (p PtrType) CString() string {
 
 func (p PtrType) StackSize() int {
 	return 1
+}
+
+func (p PtrType) Explode(v Node, length int) []Node {
+	return p.BaseType.(ComplexType).Explode(v, length)
 }
 
 var typeMap = map[string]Type{}

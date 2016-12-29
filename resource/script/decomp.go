@@ -87,7 +87,7 @@ func (m *Machine) scanFunction() *Function {
 		arg := &Variable{
 			Index:      i,
 			Identifier: fmt.Sprintf("local_%v", i),
-			Type:       IntType, /* FIXME types */
+			Type:       UnknownType,
 			IsArgument: true,
 		}
 		function.In.AddVariable(arg.Declaration())
@@ -99,7 +99,7 @@ func (m *Machine) scanFunction() *Function {
 		local := &Variable{
 			Index:      i,
 			Identifier: fmt.Sprintf("local_%v", i),
-			Type:       IntType, /* FIXME types */
+			Type:       UnknownType,
 		}
 		function.Decls.AddVariable(local.Declaration())
 	}
@@ -131,8 +131,7 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 	switch {
 	/* standard stack ops */
 	case op == OpPush:
-		block.pushNode(Immediate{istr.Operands})
-		block.instrs.nextInstruction()
+		m.decompilePushImm(block)
 	case op == OpPushStr:
 		fallthrough
 	case op == OpPushStrN:
@@ -167,9 +166,9 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 	case op == OpGetGlobalP:
 		fallthrough
 	case op == OpGetGlobal:
-		fallthrough
-	case op == OpGetP:
 		m.decompileVarAccess(block)
+	case op == OpGetP:
+		m.decompileGetP(block)
 
 	/* assignment ops */
 	case op == OpSetArray:
@@ -181,11 +180,11 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 	case op == OpSetStatic:
 		fallthrough
 	case op == OpSetGlobal:
-		fallthrough
-	case op == OpSetP:
 		m.decompileAssignment(block)
+	case op == OpSetP:
+		m.decompileSetP(block, false)
 	case op == OpSetPPeek:
-		m.decompileSetPP(block)
+		m.decompileSetP(block, true)
 
 	case op == OpImplode:
 		m.decompileImplode(block)

@@ -356,11 +356,17 @@ func (expr PtrNode) CString() string {
 }
 
 func (expr PtrNode) InferType(typ Type) {
+	if ptrTyp, ok := typ.(PtrType); ok {
+		typ = ptrTyp.BaseType
+	} else {
+		fmt.Printf("WARNING: expected inferred type to be a pointer")
+	}
+
 	expr.Node.(TypeInferrable).InferType(typ)
 }
 
 func (expr PtrNode) DataType() Type {
-	return expr.Node.(DataTypeable).DataType()
+	return PtrType{expr.Node.(DataTypeable).DataType()}
 }
 
 type DeRefExpr struct {

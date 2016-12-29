@@ -1,5 +1,25 @@
 package script
 
+import "fmt"
+
+func (m *Machine) decompilePushImm(block *BasicBlock) {
+	istr := block.instrs.nextInstruction()
+	op := istr.Operands
+
+	switch op := op.(type) {
+	case ImmediateIntOperands:
+		block.pushNode(Immediate{op.(Operands)})
+	case *Immediate8x2Operands:
+		block.pushNode(Immediate{&Immediate8Operands{op.Val0}})
+		block.pushNode(Immediate{&Immediate8Operands{op.Val1}})
+	case *Immediate8x3Operands:
+		block.pushNode(Immediate{&Immediate8Operands{op.Val0}})
+		block.pushNode(Immediate{&Immediate8Operands{op.Val1}})
+		block.pushNode(Immediate{&Immediate8Operands{op.Val2}})
+	}
+
+}
+
 func (m *Machine) decompilePushStr(block *BasicBlock) {
 	_ = block.instrs.nextInstruction()
 
@@ -31,10 +51,19 @@ func (m *Machine) decompileExplode(block *BasicBlock) {
 	src := block.popNode()
 	length := block.popNode().(Immediate).Value.(ImmediateIntOperands).Int()
 
-	// Is it a vec3 that we dont know about?
-	if inferrable, ok := src.(TypeInferrable); ok && length == 3 {
-		inferrable.InferType(GetType("Vector3"))
+	if inferrable, ok := src.(TypeInferrable); ok {
+		if length == 3 {
+			inferrable.InferType(GetType("Vector3*"))
+		} else {
+			inferrable.InferType(PtrType{
+				BaseType: ArrayType{
+					BaseType: UnknownType,
+					NumElems: length,
+				}})
+		}
 	}
+
+	fmt.Printf("src datatype is %v\n", src.(DataTypeable).DataType())
 
 	// eww
 	srcType := src.(DataTypeable).DataType().(ComplexType)

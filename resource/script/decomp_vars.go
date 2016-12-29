@@ -2,16 +2,31 @@ package script
 
 import "fmt"
 
-func (m *Machine) decompileSetPP(block *BasicBlock) {
+func (m *Machine) decompileSetP(block *BasicBlock, peek bool) {
 	_ = block.instrs.nextInstruction()
 
-	value := block.popNode()
-	dest := block.peekNode()
+	var value, dest Node
+	if peek {
+		value = block.popNode()
+		dest = block.peekNode()
+	} else {
+		dest = block.popNode()
+		value = block.popNode()
+	}
 
 	expectedtype := value.(DataTypeable).DataType()
 	dest.(TypeInferrable).InferType(expectedtype)
 
 	block.emitStatement(AssignStmt{dest, value})
+}
+
+func (m *Machine) decompileGetP(block *BasicBlock) {
+	_ = block.instrs.nextInstruction()
+	src := DeRefExpr{
+		Node: block.popNode(),
+	}
+
+	block.pushNode(src)
 }
 
 func (m *Machine) decompileAssignment(block *BasicBlock) {
@@ -41,8 +56,6 @@ func (m *Machine) decompileAssignment(block *BasicBlock) {
 			Array: block.popNode(),
 			Index: block.popNode(),
 		}
-	case OpSetP:
-		dest = block.popNode()
 	default:
 		fmt.Printf("dont know how to find var\n")
 	}
@@ -101,11 +114,6 @@ func (m *Machine) decompileVarAccess(block *BasicBlock) {
 		src = ArrayIndex{
 			Array: block.popNode(),
 			Index: block.popNode(),
-		}
-
-	case OpGetP:
-		src = DeRefExpr{
-			Node: block.popNode(),
 		}
 
 	default:
