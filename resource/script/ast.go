@@ -179,6 +179,7 @@ func (d *Declarations) HasVariable(identifier string) bool {
 func (d *Declarations) VariableByIndex(index int) *Variable {
 	for _, v := range d.Vars {
 		if v.Index == index {
+			v.IsReferenced = true
 			return v.Variable
 		}
 	}
@@ -189,6 +190,7 @@ func (d *Declarations) VariableByIndex(index int) *Variable {
 func (d *Declarations) VariableByName(identifier string) *Variable {
 	for _, v := range d.Vars {
 		if v.Identifier == identifier {
+			v.IsReferenced = true
 			return v.Variable
 		}
 	}
@@ -199,7 +201,7 @@ func (d *Declarations) VariableByName(identifier string) *Variable {
 func (d *Declarations) CString() string {
 	decls := make([]string, 0)
 	for _, v := range d.Vars {
-		if v.NoDecl {
+		if v.IsArgument || !v.IsReferenced {
 			continue
 		}
 		decls = append(decls, fmt.Sprintf("%v;\n", v.CString()))
@@ -210,10 +212,11 @@ func (d *Declarations) CString() string {
 
 // A Variable is an assignable memory location
 type Variable struct {
-	Index      int
-	Identifier string
-	Type       Type
-	NoDecl     bool // used to omit func arguments from the main set of local decls
+	Index        int
+	Identifier   string
+	Type         Type
+	IsArgument   bool // used to omit func arguments from the main set of local decls
+	IsReferenced bool // used to omit locals which are unused
 
 	typeInferred bool
 }
@@ -422,9 +425,13 @@ func (idx ArrayIndex) DataType() Type {
 
 func (idx ArrayIndex) CString() string {
 	if ptr, ok := idx.Array.(PtrNode); ok {
-		return fmt.Sprintf("%v->[%v]", ptr.DeRef().CString(), idx.Index.CString())
+		return fmt.Sprintf("%v[%v]", ptr.DeRef().CString(), idx.Index.CString())
 	}
 	return fmt.Sprintf("%v.[%v]", idx.Array.CString(), idx.Index.CString())
+}
+
+func (idx ArrayIndex) InferType(typ Type) {
+	// FIXME
 }
 
 type StructField struct {

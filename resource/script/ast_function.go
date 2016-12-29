@@ -71,10 +71,10 @@ func (block *BasicBlock) emitStatement(stmt Node) {
 }
 
 func (block *BasicBlock) emitComment(format string, args ...interface{}) {
-	/*	commentStr := fmt.Sprintf(format, args...)
-		comment := Comment(commentStr)
-		block.emitStatement(comment)
-		fmt.Println(commentStr)*/
+	commentStr := fmt.Sprintf(format, args...)
+	comment := Comment(commentStr)
+	block.emitStatement(comment)
+	fmt.Println(commentStr)
 }
 
 func (block *BasicBlock) pushNode(node Node) {

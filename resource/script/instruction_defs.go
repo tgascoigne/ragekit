@@ -51,9 +51,9 @@ const (
 	OpVarStart /* used to test for var ops */
 	OpExplode
 	OpImplode
-	OpArrayGetP
-	OpArrayGet
-	OpArraySet
+	OpGetArrayP
+	OpGetArray
+	OpSetArray
 	OpGetP
 	OpSetP
 	OpSetPPeek
@@ -213,9 +213,9 @@ var OpType = map[uint8]uint8{
 	49:  OpSetPPeek,
 	50:  OpExplode, //tostack
 	51:  OpImplode,
-	52:  OpArrayGetP,
-	53:  OpArrayGet,
-	54:  OpArraySet,
+	52:  OpGetArrayP,
+	53:  OpGetArray,
+	54:  OpSetArray,
 	55:  OpGetLocalP,
 	56:  OpGetLocal,
 	57:  OpSetLocal,
@@ -224,7 +224,7 @@ var OpType = map[uint8]uint8{
 	60:  OpSetStatic,
 	61:  OpAdd,
 	62:  OpMul,
-	63:  OpArrayGetP,
+	63:  OpGetArrayP,
 	64:  OpGetFieldP,
 	65:  OpGetField,
 	66:  OpSetField,
@@ -234,9 +234,9 @@ var OpType = map[uint8]uint8{
 	70:  OpGetFieldP,
 	71:  OpGetField,
 	72:  OpSetField,
-	73:  OpArrayGetP,
-	74:  OpArrayGet,
-	75:  OpArraySet,
+	73:  OpGetArrayP,
+	74:  OpGetArray,
+	75:  OpSetArray,
 	76:  OpGetLocalP,
 	77:  OpGetLocal,
 	78:  OpSetLocal,
@@ -321,9 +321,9 @@ var OpMnemonic = map[uint8]string{
 	OpSetPPeek:   "setpp",
 	OpExplode:    "explode",
 	OpImplode:    "implode",
-	OpArrayGetP:  "getarrayp",
-	OpArrayGet:   "getarray",
-	OpArraySet:   "setarray",
+	OpGetArrayP:  "getarrayp",
+	OpGetArray:   "getarray",
+	OpSetArray:   "setarray",
 	OpGetLocalP:  "getlocalp",
 	OpGetLocal:   "getlocal",
 	OpSetLocal:   "setlocal",

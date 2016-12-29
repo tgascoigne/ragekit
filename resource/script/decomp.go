@@ -88,7 +88,7 @@ func (m *Machine) scanFunction() *Function {
 			Index:      i,
 			Identifier: fmt.Sprintf("local_%v", i),
 			Type:       IntType, /* FIXME types */
-			NoDecl:     true,
+			IsArgument: true,
 		}
 		function.In.AddVariable(arg.Declaration())
 		function.Decls.AddVariable(arg.Declaration())
@@ -113,10 +113,6 @@ func (m *Machine) scanFunction() *Function {
 
 		function.instrs.append(nextIstr)
 		m.instrs.nextInstruction()
-
-		if nextIstr.Operation == OpRet {
-			function.inferReturnType(nextIstr)
-		}
 	}
 
 	return function
@@ -152,6 +148,10 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 		block.instrs.nextInstruction()
 
 	/* variable access ops */
+	case op == OpGetArrayP:
+		fallthrough
+	case op == OpGetArray:
+		fallthrough
 	case op == OpGetFieldP:
 		fallthrough
 	case op == OpGetField:
@@ -167,9 +167,13 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 	case op == OpGetGlobalP:
 		fallthrough
 	case op == OpGetGlobal:
+		fallthrough
+	case op == OpGetP:
 		m.decompileVarAccess(block)
 
 	/* assignment ops */
+	case op == OpSetArray:
+		fallthrough
 	case op == OpSetField:
 		fallthrough
 	case op == OpSetLocal:
@@ -177,7 +181,11 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 	case op == OpSetStatic:
 		fallthrough
 	case op == OpSetGlobal:
+		fallthrough
+	case op == OpSetP:
 		m.decompileAssignment(block)
+	case op == OpSetPPeek:
+		m.decompileSetPP(block)
 
 	case op == OpImplode:
 		m.decompileImplode(block)
