@@ -76,7 +76,7 @@ func (block *BasicBlock) emitComment(format string, args ...interface{}) {
 func (block *BasicBlock) pushNode(node Node) {
 	block.nodeStack = append(block.nodeStack, node)
 	block.nodeStackIdx++
-	block.emitComment("pushing %v at stack idx %v", node.CString(), block.nodeStackIdx)
+	//block.emitComment("pushing %v at stack idx %v", node.CString(), block.nodeStackIdx)
 }
 
 func (block *BasicBlock) popNode() Node {

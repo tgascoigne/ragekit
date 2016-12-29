@@ -23,6 +23,8 @@ const (
 	RefToken    Token = "&"
 	DeRefToken  Token = "*"
 	ReturnToken Token = "return"
+	ExternToken Token = "extern"
+	StaticToken Token = "static"
 )
 
 func (t Token) CString() string {
@@ -39,6 +41,23 @@ type File struct {
 	Decls     Declarations
 	Functions []*Function
 	Nodes     []Node
+}
+
+func (f *File) GlobalByIndex(index int) Node {
+	identifier := fmt.Sprintf("global_%v", index)
+	if !f.Decls.HasVariable(identifier) {
+		decl := &VariableDeclaration{
+			Variable: &Variable{
+				Identifier: identifier,
+				Type:       UnknownType,
+			},
+			Scope: ExternToken,
+		}
+		fmt.Printf("adding global decl %v\n", decl.CString())
+		f.Decls.AddVariable(decl)
+	}
+
+	return f.Decls.VariableByName(identifier)
 }
 
 func (f File) FunctionByName(identifier string) *Function {
@@ -147,6 +166,16 @@ func (d *Declarations) AddVariable(decl *VariableDeclaration) {
 	d.Vars = append(d.Vars, decl)
 }
 
+func (d *Declarations) HasVariable(identifier string) bool {
+	for _, v := range d.Vars {
+		if v.Identifier == identifier {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (d *Declarations) VariableByName(identifier string) *Variable {
 	for _, v := range d.Vars {
 		if v.Identifier == identifier {
@@ -226,18 +255,24 @@ func (r *VariableReference) CString() string {
 type VariableDeclaration struct {
 	*Variable
 	Value interface{}
+	Scope Token
 }
 
 func (d VariableDeclaration) CString() string {
+	var valueStr, specifierStr string
+
 	if d.Value != nil {
-		valueStr := fmt.Sprintf("%v", d.Value)
+		valueStr = fmt.Sprintf(" = %v", d.Value)
 		if val, ok := d.Value.(CStringer); ok {
-			valueStr = val.CString()
+			valueStr = fmt.Sprintf(" = %v", val.CString())
 		}
-		return fmt.Sprintf("%v %v = %v", d.Type.CString(), d.Identifier, valueStr)
-	} else {
-		return fmt.Sprintf("%v %v", d.Type.CString(), d.Identifier)
 	}
+
+	if d.Scope != Token("") {
+		specifierStr = fmt.Sprintf("%v ", d.Scope)
+	}
+
+	return fmt.Sprintf("%v%v %v%v", specifierStr, d.Type.CString(), d.Identifier, valueStr)
 }
 
 // An AssignStmt assigns a value to a Variable
@@ -303,11 +338,11 @@ func (expr PtrNode) CString() string {
 }
 
 func (expr PtrNode) InferType(typ Type) {
-	expr.Node.(*Variable).InferType(typ)
+	expr.Node.(TypeInferrable).InferType(typ)
 }
 
 func (expr PtrNode) DataType() Type {
-	return expr.Node.(*Variable).DataType()
+	return expr.Node.(DataTypeable).DataType()
 }
 
 type DeRefExpr struct {

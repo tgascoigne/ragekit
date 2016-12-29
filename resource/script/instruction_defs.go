@@ -66,10 +66,10 @@ const (
 	OpGetGlobalP
 	OpGetGlobal
 	OpSetGlobal
+	OpGetFieldP
+	OpGetField
+	OpSetField
 	OpVarEnd /* used to test for var ops */
-	OpFieldGetP
-	OpFieldSet
-	OpFieldGet
 	OpStrCpy
 	OpItoF
 	OpFtoI
@@ -225,15 +225,15 @@ var OpType = map[uint8]uint8{
 	61:  OpAdd,
 	62:  OpMul,
 	63:  OpArrayGetP,
-	64:  OpFieldGetP,
-	65:  OpFieldGet,
-	66:  OpFieldSet,
+	64:  OpGetFieldP,
+	65:  OpGetField,
+	66:  OpSetField,
 	67:  OpPush,
 	68:  OpAdd,
 	69:  OpMul,
-	70:  OpFieldGetP,
-	71:  OpFieldGet,
-	72:  OpFieldSet,
+	70:  OpGetFieldP,
+	71:  OpGetField,
+	72:  OpSetField,
 	73:  OpArrayGetP,
 	74:  OpArrayGet,
 	75:  OpArraySet,
@@ -353,9 +353,9 @@ var OpMnemonic = map[uint8]string{
 	OpThrow:      "throw",
 	OpCallP:      "callp",
 	OpSwitch:     "switch",
-	OpFieldGetP:  "getfieldp",
-	OpFieldGet:   "getfield",
-	OpFieldSet:   "setfield",
+	OpGetFieldP:  "getfieldp",
+	OpGetField:   "getfield",
+	OpSetField:   "setfield",
 }
 
 var OpSuffix = map[uint8]string{

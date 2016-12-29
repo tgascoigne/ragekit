@@ -35,6 +35,7 @@ func (m *Machine) createStaticDecls() {
 		} else {
 			staticDecl = staticVar.Declaration()
 		}
+		staticDecl.Scope = StaticToken
 
 		m.file.Decls.AddVariable(staticDecl)
 	}
@@ -130,14 +131,14 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 	switch {
 	/* standard stack ops */
 	case op == OpPush:
-		fallthrough
+		block.pushNode(Immediate{istr.Operands})
+		block.instrs.nextInstruction()
 	case op == OpPushStr:
 		fallthrough
 	case op == OpPushStrN:
 		fallthrough
 	case op == OpPushStrL:
-		block.pushNode(Immediate{istr.Operands})
-		block.instrs.nextInstruction()
+		m.decompilePushStr(block)
 	case op == OpDrop:
 		block.popNode()
 		block.instrs.nextInstruction()
@@ -147,19 +148,31 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 		block.instrs.nextInstruction()
 
 	/* variable access ops */
-	case op == OpGetStaticP:
+	case op == OpGetFieldP:
 		fallthrough
-	case op == OpGetStatic:
-		m.decompileVarAccess(block)
+	case op == OpGetField:
+		fallthrough
 	case op == OpGetLocalP:
 		fallthrough
 	case op == OpGetLocal:
+		fallthrough
+	case op == OpGetStaticP:
+		fallthrough
+	case op == OpGetStatic:
+		fallthrough
+	case op == OpGetGlobalP:
+		fallthrough
+	case op == OpGetGlobal:
 		m.decompileVarAccess(block)
 
 	/* assignment ops */
+	case op == OpSetField:
+		fallthrough
 	case op == OpSetLocal:
 		fallthrough
 	case op == OpSetStatic:
+		fallthrough
+	case op == OpSetGlobal:
 		m.decompileAssignment(block)
 
 	case op == OpImplode:
@@ -191,6 +204,16 @@ func (m *Machine) decompileUnknownOp(block *BasicBlock) {
 		return
 	}
 	block.emitStatement(AsmStmt{istr.String()})
+}
+
+func (m *Machine) decompilePushStr(block *BasicBlock) {
+	_ = block.instrs.nextInstruction()
+
+	strIndex := block.popNode().(Immediate).Value.(ImmediateIntOperands)
+	value := m.script.StringTableEntry(strIndex.Int())
+	block.pushNode(Immediate{
+		Value: &StringOperands{value},
+	})
 }
 
 func (m *Machine) decompileCall(block *BasicBlock) {
@@ -281,6 +304,12 @@ func (m *Machine) decompileVarAccess(block *BasicBlock) {
 	isPtr := false
 	var src Node
 	switch istr.Operation {
+	case OpGetGlobalP:
+		isPtr = true
+		fallthrough
+	case OpGetGlobal:
+		src = m.file.GlobalByIndex(op.Int())
+
 	case OpGetStaticP:
 		isPtr = true
 		fallthrough
@@ -292,6 +321,19 @@ func (m *Machine) decompileVarAccess(block *BasicBlock) {
 		fallthrough
 	case OpGetLocal:
 		src = block.VariableByName(fmt.Sprintf("local_%v", op.Int()))
+
+	case OpGetFieldP:
+		isPtr = true
+		fallthrough
+	case OpGetField:
+		struc := block.popNode()
+		src = StructField{
+			Struct: struc,
+			Field: &Variable{
+				Identifier: fmt.Sprintf("field_%v", op.Int()),
+				Type:       UnknownType,
+			},
+		}
 
 	default:
 		fmt.Printf("dont know how to find var\n")
@@ -355,12 +397,23 @@ func (m *Machine) decompileAssignment(block *BasicBlock) {
 	istr := block.instrs.nextInstruction()
 	op := istr.Operands.(ImmediateIntOperands)
 
-	var dest *Variable
+	var dest Node
 	switch istr.Operation {
+	case OpSetGlobal:
+		dest = m.file.GlobalByIndex(op.Int())
 	case OpSetStatic:
 		dest = m.file.Decls.VariableByName(fmt.Sprintf("static_%v", op.Int()))
 	case OpSetLocal:
 		dest = block.VariableByName(fmt.Sprintf("local_%v", op.Int()))
+	case OpSetField:
+		struc := block.popNode()
+		dest = StructField{
+			Struct: struc,
+			Field: &Variable{
+				Identifier: fmt.Sprintf("field_%v", op.Int()),
+				Type:       UnknownType,
+			},
+		}
 	default:
 		fmt.Printf("dont know how to find var\n")
 	}
@@ -368,7 +421,7 @@ func (m *Machine) decompileAssignment(block *BasicBlock) {
 	value := block.popNode()
 
 	expectedtype := value.(DataTypeable).DataType()
-	dest.InferType(expectedtype)
+	dest.(TypeInferrable).InferType(expectedtype)
 
 	block.emitStatement(AssignStmt{dest, value})
 }
