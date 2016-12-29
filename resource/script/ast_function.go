@@ -62,15 +62,19 @@ func (b *BasicBlock) VariableByName(identifier string) *Variable {
 	return b.ParentFunc.Decls.VariableByName(identifier)
 }
 
+func (b *BasicBlock) VariableByIndex(index int) *Variable {
+	return b.ParentFunc.Decls.VariableByIndex(index)
+}
+
 func (block *BasicBlock) emitStatement(stmt Node) {
 	block.Statements = append(block.Statements, stmt)
 }
 
 func (block *BasicBlock) emitComment(format string, args ...interface{}) {
-	commentStr := fmt.Sprintf(format, args...)
-	comment := Comment(commentStr)
-	block.emitStatement(comment)
-	fmt.Println(commentStr)
+	/*	commentStr := fmt.Sprintf(format, args...)
+		comment := Comment(commentStr)
+		block.emitStatement(comment)
+		fmt.Println(commentStr)*/
 }
 
 func (block *BasicBlock) pushNode(node Node) {

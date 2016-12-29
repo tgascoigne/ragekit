@@ -5,25 +5,33 @@ func (m *Machine) decompileCall(block *BasicBlock) {
 
 	var node Node
 	var targetFn *Function
+	isNative := false
 
 	switch op := istr.Operands.(type) {
 	case *CallOperands:
 		targetFn = m.file.FunctionByAddress(op.Val)
 	case *CallNOperands:
+		isNative = true
 		targetFn = m.file.FunctionForNative(m.script.HashTable, op.Native)
 	}
 
 	args := make([]Node, targetFn.In.Size())
 	for i := range args {
-		thisArg := block.popNode()
 		argIdx := targetFn.In.Size() - i - 1
 
-		if inferrable, ok := thisArg.(TypeInferrable); ok {
-			expectedType := targetFn.In.Vars[argIdx].DataType()
+		argValue := block.popNode()
+		argVariable := targetFn.In.Vars[argIdx]
+
+		if inferrable, ok := argValue.(TypeInferrable); ok {
+			expectedType := argVariable.DataType()
 			inferrable.InferType(expectedType)
 		}
 
-		args[argIdx] = thisArg
+		if v, valIsVariable := argValue.(*Variable); isNative && valIsVariable {
+			v.Identifier = argVariable.Identifier
+		}
+
+		args[argIdx] = argValue
 	}
 
 	node = FunctionCall{

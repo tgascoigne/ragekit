@@ -11,14 +11,15 @@ func (m *Machine) decompileAssignment(block *BasicBlock) {
 	case OpSetGlobal:
 		dest = m.file.GlobalByIndex(op.Int())
 	case OpSetStatic:
-		dest = m.file.Decls.VariableByName(fmt.Sprintf("static_%v", op.Int()))
+		dest = m.file.Decls.VariableByIndex(op.Int())
 	case OpSetLocal:
-		dest = block.VariableByName(fmt.Sprintf("local_%v", op.Int()))
+		dest = block.VariableByIndex(op.Int())
 	case OpSetField:
 		struc := block.popNode()
 		dest = StructField{
 			Struct: struc,
 			Field: &Variable{
+				Index:      op.Int(),
 				Identifier: fmt.Sprintf("field_%v", op.Int()),
 				Type:       UnknownType,
 			},
@@ -52,13 +53,13 @@ func (m *Machine) decompileVarAccess(block *BasicBlock) {
 		isPtr = true
 		fallthrough
 	case OpGetStatic:
-		src = m.file.Decls.VariableByName(fmt.Sprintf("static_%v", op.Int()))
+		src = m.file.Decls.VariableByIndex(op.Int())
 
 	case OpGetLocalP:
 		isPtr = true
 		fallthrough
 	case OpGetLocal:
-		src = block.VariableByName(fmt.Sprintf("local_%v", op.Int()))
+		src = block.VariableByIndex(op.Int())
 
 	case OpGetFieldP:
 		isPtr = true
@@ -68,6 +69,7 @@ func (m *Machine) decompileVarAccess(block *BasicBlock) {
 		src = StructField{
 			Struct: struc,
 			Field: &Variable{
+				Index:      op.Int(),
 				Identifier: fmt.Sprintf("field_%v", op.Int()),
 				Type:       UnknownType,
 			},

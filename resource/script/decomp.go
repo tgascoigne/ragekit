@@ -25,6 +25,7 @@ func (m *Machine) createStaticDecls() {
 	statics := m.script.StaticValues
 	for i, v := range statics {
 		staticVar := Variable{
+			Index:      i,
 			Identifier: fmt.Sprintf("static_%v", i),
 			Type:       IntType,
 		}
@@ -84,8 +85,10 @@ func (m *Machine) scanFunction() *Function {
 	// Create arg decls
 	for i := 0; i < int(operands.NumArgs); i++ {
 		arg := &Variable{
+			Index:      i,
 			Identifier: fmt.Sprintf("local_%v", i),
 			Type:       IntType, /* FIXME types */
+			NoDecl:     true,
 		}
 		function.In.AddVariable(arg.Declaration())
 		function.Decls.AddVariable(arg.Declaration())
@@ -94,6 +97,7 @@ func (m *Machine) scanFunction() *Function {
 	// Create local decls
 	for i := int(operands.NumArgs); i < int(operands.NumLocals); i++ {
 		local := &Variable{
+			Index:      i,
 			Identifier: fmt.Sprintf("local_%v", i),
 			Type:       IntType, /* FIXME types */
 		}

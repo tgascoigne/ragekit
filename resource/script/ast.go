@@ -176,6 +176,16 @@ func (d *Declarations) HasVariable(identifier string) bool {
 	return false
 }
 
+func (d *Declarations) VariableByIndex(index int) *Variable {
+	for _, v := range d.Vars {
+		if v.Index == index {
+			return v.Variable
+		}
+	}
+
+	panic(fmt.Sprintf("no variable declaration with index %v\n", index))
+}
+
 func (d *Declarations) VariableByName(identifier string) *Variable {
 	for _, v := range d.Vars {
 		if v.Identifier == identifier {
@@ -187,9 +197,12 @@ func (d *Declarations) VariableByName(identifier string) *Variable {
 }
 
 func (d *Declarations) CString() string {
-	decls := make([]string, len(d.Vars))
-	for i, v := range d.Vars {
-		decls[i] = fmt.Sprintf("%v;\n", v.CString())
+	decls := make([]string, 0)
+	for _, v := range d.Vars {
+		if v.NoDecl {
+			continue
+		}
+		decls = append(decls, fmt.Sprintf("%v;\n", v.CString()))
 	}
 
 	return fmt.Sprintf("%v", strings.Join(decls, ""))
@@ -197,8 +210,10 @@ func (d *Declarations) CString() string {
 
 // A Variable is an assignable memory location
 type Variable struct {
+	Index      int
 	Identifier string
 	Type       Type
+	NoDecl     bool // used to omit func arguments from the main set of local decls
 
 	typeInferred bool
 }
