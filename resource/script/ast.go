@@ -20,6 +20,7 @@ const (
 	XorToken    Token = "^"
 	NotToken    Token = "!"
 	NegToken    Token = "-"
+	RefToken    Token = "&"
 	DeRefToken  Token = "*"
 	ReturnToken Token = "return"
 )
@@ -289,6 +290,26 @@ func (expr UnaryExpr) CString() string {
 	return fmt.Sprintf("%v%v", expr.Op.CString(), expr.Node.CString())
 }
 
+type PtrNode struct {
+	Node Node
+}
+
+func (expr PtrNode) DeRef() Node {
+	return expr.Node
+}
+
+func (expr PtrNode) CString() string {
+	return fmt.Sprintf("%v%v", RefToken, expr.Node.CString())
+}
+
+func (expr PtrNode) InferType(typ Type) {
+	expr.Node.(*Variable).InferType(typ)
+}
+
+func (expr PtrNode) DataType() Type {
+	return expr.Node.(*Variable).DataType()
+}
+
 type DeRefExpr struct {
 	Node Node
 }
@@ -350,7 +371,10 @@ func (idx ArrayIndex) DataType() Type {
 }
 
 func (idx ArrayIndex) CString() string {
-	return fmt.Sprintf("%v[%v]", idx.Array.CString(), idx.Index.CString())
+	if ptr, ok := idx.Array.(PtrNode); ok {
+		return fmt.Sprintf("%v->[%v]", ptr.DeRef().CString(), idx.Index.CString())
+	}
+	return fmt.Sprintf("%v.[%v]", idx.Array.CString(), idx.Index.CString())
 }
 
 type StructField struct {
@@ -363,6 +387,9 @@ func (s StructField) DataType() Type {
 }
 
 func (s StructField) CString() string {
+	if ptr, ok := s.Struct.(PtrNode); ok {
+		return fmt.Sprintf("%v->%v", ptr.DeRef().CString(), s.Field.CString())
+	}
 	return fmt.Sprintf("%v.%v", s.Struct.CString(), s.Field.CString())
 }
 

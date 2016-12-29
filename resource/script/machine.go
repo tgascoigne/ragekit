@@ -125,7 +125,7 @@ func (m *Machine) decompileFunction(fn *Function) {
 
 func (m *Machine) decompileStatement(block *BasicBlock) {
 	istr := block.instrs.peekInstruction()
-	block.emitComment("asm(\"%v\")", istr.String())
+	block.emitComment("\t\t\t\t\t\t\tasm(\"%v\")", istr.String())
 	op := istr.Operation
 	switch {
 	/* standard stack ops */
@@ -278,17 +278,17 @@ func (m *Machine) decompileVarAccess(block *BasicBlock) {
 	istr := block.instrs.nextInstruction()
 	op := istr.Operands.(ImmediateIntOperands)
 
-	deRef := false
+	isPtr := false
 	var src Node
 	switch istr.Operation {
 	case OpGetStaticP:
-		deRef = true
+		isPtr = true
 		fallthrough
 	case OpGetStatic:
 		src = m.file.Decls.VariableByName(fmt.Sprintf("static_%v", op.Int()))
 
 	case OpGetLocalP:
-		deRef = true
+		isPtr = true
 		fallthrough
 	case OpGetLocal:
 		src = block.VariableByName(fmt.Sprintf("local_%v", op.Int()))
@@ -297,8 +297,8 @@ func (m *Machine) decompileVarAccess(block *BasicBlock) {
 		fmt.Printf("dont know how to find var\n")
 	}
 
-	if deRef {
-		src = DeRefExpr{
+	if isPtr {
+		src = PtrNode{
 			Node: src,
 		}
 	}
