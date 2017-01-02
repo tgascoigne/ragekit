@@ -60,7 +60,7 @@ func (f *File) GlobalByIndex(index int) Node {
 	return f.Decls.VariableByName(identifier)
 }
 
-func (f File) FunctionByName(identifier string) *Function {
+func (f *File) FunctionByName(identifier string) *Function {
 	for _, fn := range f.Functions {
 		if fn.Identifier == identifier {
 			return fn
@@ -70,7 +70,7 @@ func (f File) FunctionByName(identifier string) *Function {
 	panic(fmt.Sprintf("unknown function: ", identifier))
 }
 
-func (f File) FunctionByAddress(addr uint32) *Function {
+func (f *File) FunctionByAddress(addr uint32) *Function {
 	for _, fn := range f.Functions {
 		if fn.Address == addr {
 			return fn
@@ -80,13 +80,36 @@ func (f File) FunctionByAddress(addr uint32) *Function {
 	panic(fmt.Sprintf("unknown function with address: %x", addr))
 }
 
-func (f File) FunctionForNative(db *NativeDB, native Native64) *Function {
+func (f *File) FunctionForNative(db *NativeDB, operands *CallNOperands) (fn *Function, generated bool) {
+	native := operands.Native
 	spec := db.LookupNative(native)
 	if spec == nil {
-		panic(fmt.Sprintf("unknown function with hash: %x", native))
+		// No spec for this native, create one using the calln operands
+		fmt.Printf("WARNING: unknown function with hash: %x\n", native)
+		numIn, numOut := operands.InSize, operands.OutSize
+
+		params := make([]NativeParam, numIn)
+		for i := 0; i < int(numIn); i++ {
+			params[i] = NativeParam{
+				Name: fmt.Sprintf("arg_%v", i),
+				Type: GetType("Any"),
+			}
+		}
+
+		spec = &NativeSpec{
+			Name:   fmt.Sprintf("unk_%x", native),
+			Params: params,
+			Results: ArrayType{
+				BaseType: UnknownType,
+				NumElems: int(numOut),
+			},
+		}
+
+		// Let the caller know that we it's been auto-generated
+		generated = true
 	}
 
-	fn := &Function{
+	fn = &Function{
 		Identifier: spec.Name,
 		Out: &Variable{
 			Identifier: "ERROR",
@@ -103,10 +126,10 @@ func (f File) FunctionForNative(db *NativeDB, native Native64) *Function {
 		})
 	}
 
-	return fn
+	return fn, false
 }
 
-func (f File) CString() string {
+func (f *File) CString() string {
 	buf := new(bytes.Buffer)
 
 	fmt.Fprintf(buf, "%v\n", f.Decls.CString())
@@ -255,7 +278,7 @@ func (v *Variable) InferType(typ Type) {
 		//return
 	}
 
-	fmt.Printf("inferring type %v = %v\n", v.Identifier, typ)
+	fmt.Printf("inferring type %v = %#v\n", v.CString(), typ)
 
 	v.typeInferred = true
 	v.Type = typ
@@ -276,7 +299,7 @@ type VariableDeclaration struct {
 	Scope Token
 }
 
-func (d VariableDeclaration) CString() string {
+func (d *VariableDeclaration) CString() string {
 	var valueStr, specifierStr string
 
 	if d.Value != nil {
@@ -359,7 +382,7 @@ func (expr PtrNode) InferType(typ Type) {
 	if ptrTyp, ok := typ.(PtrType); ok {
 		typ = ptrTyp.BaseType
 	} else {
-		fmt.Printf("WARNING: expected inferred type to be a pointer")
+		fmt.Printf("WARNING: expected inferred type to be a pointer\n")
 	}
 
 	expr.Node.(TypeInferrable).InferType(typ)
@@ -426,6 +449,14 @@ type ArrayIndex struct {
 }
 
 func (idx ArrayIndex) DataType() Type {
+	switch typ := idx.Array.(type) {
+	case ArrayType:
+		return typ.BaseType
+	case PtrType:
+		return typ.BaseType
+	case ArrayIndex:
+		return typ.DataType()
+	}
 	return UnknownType
 }
 
@@ -433,11 +464,14 @@ func (idx ArrayIndex) CString() string {
 	if ptr, ok := idx.Array.(PtrNode); ok {
 		return fmt.Sprintf("%v[%v]", ptr.DeRef().CString(), idx.Index.CString())
 	}
-	return fmt.Sprintf("%v.[%v]", idx.Array.CString(), idx.Index.CString())
+	return fmt.Sprintf("%v[%v]", idx.Array.CString(), idx.Index.CString())
 }
 
 func (idx ArrayIndex) InferType(typ Type) {
-	// FIXME
+	idx.Array.(TypeInferrable).InferType(ArrayType{
+		BaseType: typ,
+		NumElems: 0, // can we guess the number of elems from anywhere?
+	})
 }
 
 type StructField struct {

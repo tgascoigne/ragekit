@@ -80,7 +80,7 @@ func (block *BasicBlock) emitComment(format string, args ...interface{}) {
 func (block *BasicBlock) pushNode(node Node) {
 	block.nodeStack = append(block.nodeStack, node)
 	block.nodeStackIdx++
-	//block.emitComment("pushing %v at stack idx %v", node.CString(), block.nodeStackIdx)
+	//block.emitComment("pushing %#v at stack idx %v", node, block.nodeStackIdx)
 }
 
 func (block *BasicBlock) popNode() Node {
@@ -92,7 +92,7 @@ func (block *BasicBlock) popNode() Node {
 	node := block.peekNode()
 	block.nodeStackIdx--
 	block.nodeStack = block.nodeStack[:block.nodeStackIdx]
-	//	fmt.Printf("popping %v %v\n", node.CString(), block.nodeStackIdx)
+	//fmt.Printf("popping %v %v\n", node.CString(), block.nodeStackIdx)
 	return node
 }
 

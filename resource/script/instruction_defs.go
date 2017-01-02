@@ -224,7 +224,7 @@ var OpType = map[uint8]uint8{
 	60:  OpSetStatic,
 	61:  OpAdd,
 	62:  OpMul,
-	63:  OpGetArrayP,
+	63:  OpGetFieldP,
 	64:  OpGetFieldP,
 	65:  OpGetField,
 	66:  OpSetField,

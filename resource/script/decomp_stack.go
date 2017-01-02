@@ -1,7 +1,5 @@
 package script
 
-import "fmt"
-
 func (m *Machine) decompilePushImm(block *BasicBlock) {
 	istr := block.instrs.nextInstruction()
 	op := istr.Operands
@@ -41,7 +39,12 @@ func (m *Machine) decompileImplode(block *BasicBlock) {
 	}
 
 	expectedtype := elems[0].(DataTypeable).DataType()
-	dest.(TypeInferrable).InferType(expectedtype)
+	dest.(TypeInferrable).InferType(PtrType{
+		BaseType: ArrayType{
+			BaseType: expectedtype,
+			NumElems: length,
+		},
+	})
 
 	block.emitStatement(AssignStmt{dest, elems})
 }
@@ -52,18 +55,15 @@ func (m *Machine) decompileExplode(block *BasicBlock) {
 	length := block.popNode().(Immediate).Value.(ImmediateIntOperands).Int()
 
 	if inferrable, ok := src.(TypeInferrable); ok {
-		if length == 3 {
-			inferrable.InferType(GetType("Vector3*"))
-		} else {
-			inferrable.InferType(PtrType{
-				BaseType: ArrayType{
-					BaseType: UnknownType,
-					NumElems: length,
-				}})
-		}
+		typ := guessType(length)
+		typ = PtrType{typ}
+		//		fmt.Printf("%#v\n", src.(DataTypeable).DataType().(ComplexType))
+		//		fmt.Printf("%#v\n", src)
+		inferrable.InferType(typ)
 	}
 
-	fmt.Printf("src datatype is %v\n", src.(DataTypeable).DataType())
+	//	fmt.Printf("src is %#v\n", src.CString())
+	//	fmt.Printf("src datatype is %#v\n", src.(DataTypeable).DataType())
 
 	// eww
 	srcType := src.(DataTypeable).DataType().(ComplexType)

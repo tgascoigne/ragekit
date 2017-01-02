@@ -100,11 +100,11 @@ func (op *Immediate24Operands) Unpack(istr *Instruction, script *Script, res *re
 	res.Parse(&val0)
 	res.Parse(&val1)
 	res.Parse(&val2)
-	op.Val = uint32(val0)
+	op.Val = uint32(val2)
 	op.Val <<= 8
 	op.Val += uint32(val1)
 	op.Val <<= 8
-	op.Val += uint32(val2)
+	op.Val += uint32(val0)
 }
 
 type Immediate16Operands struct {

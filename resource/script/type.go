@@ -67,7 +67,7 @@ func (t ArrayType) Explode(v Node, length int) []Node {
 	for i := 0; i < length; i++ {
 		var node Node
 		node = ArrayIndex{
-			Array: t,
+			Array: v,
 			Index: IntImmediate(uint32(i)),
 		}
 
@@ -90,7 +90,36 @@ func (p PtrType) StackSize() int {
 }
 
 func (p PtrType) Explode(v Node, length int) []Node {
-	return p.BaseType.(ComplexType).Explode(v, length)
+	switch typ := p.BaseType.(type) {
+	case ComplexType:
+		return typ.Explode(v, length)
+	}
+
+	// Don't know how to explode this.. pretend it's a struct
+	fields := make([]*Variable, length)
+	for i := range fields {
+		fields[i] = &Variable{
+			Identifier: fmt.Sprintf("field_%v", i),
+			Index:      i,
+			Type:       p.BaseType,
+		}
+	}
+	struc := &StructType{
+		SimpleType: SimpleType{
+			Type: "unknown_struct",
+			Size: length,
+		},
+		Fields: fields,
+	}
+	return struc.Explode(v, length)
+}
+
+type EngineType struct {
+	SimpleType
+}
+
+func (e EngineType) Explode(v Node, length int) []Node {
+	return PtrType{e}.Explode(v, length)
 }
 
 var typeMap = map[string]Type{}
@@ -120,55 +149,79 @@ var simpleTypes = []SimpleType{
 		Type: "BOOL",
 		Size: 1,
 	},
-	SimpleType{
+}
+
+var engineTypes = []Type{
+	EngineType{SimpleType{
 		Type: "Player",
 		Size: 1,
-	},
-	SimpleType{
+	}},
+	EngineType{SimpleType{
 		Type: "Ped",
 		Size: 1,
-	},
-	SimpleType{
+	}},
+	buildStructType(SimpleType{
 		Type: "Entity",
-		Size: 1,
-	},
-	SimpleType{
+		Size: 37,
+	}),
+	EngineType{SimpleType{
 		Type: "Any",
 		Size: 1,
-	},
-	SimpleType{
+	}},
+	EngineType{SimpleType{
 		Type: "Object",
 		Size: 1,
-	},
-	SimpleType{
+	}},
+	EngineType{SimpleType{
 		Type: "Vehicle",
 		Size: 1,
-	},
-	SimpleType{
+	}},
+	EngineType{SimpleType{
 		Type: "Pickup",
 		Size: 1,
-	},
-	SimpleType{
+	}},
+	EngineType{SimpleType{
 		Type: "Hash",
 		Size: 1,
-	},
-	SimpleType{
+	}},
+	EngineType{SimpleType{
 		Type: "ScrHandle",
 		Size: 1,
-	},
-	SimpleType{
+	}},
+	EngineType{SimpleType{
 		Type: "Cam",
 		Size: 1,
-	},
-	SimpleType{
+	}},
+	EngineType{SimpleType{
 		Type: "Blip",
 		Size: 1,
-	},
+	}},
+}
+
+func buildStructType(typ SimpleType) StructType {
+	struc := StructType{
+		SimpleType: typ,
+		Fields:     make([]*Variable, typ.StackSize()),
+	}
+
+	for i := range struc.Fields {
+		struc.Fields[i] = &Variable{
+			Identifier: fmt.Sprintf("field_%v", i),
+			Index:      i,
+			Type:       UnknownType,
+		}
+	}
+
+	return struc
 }
 
 func init() {
 	for _, t := range simpleTypes {
 		typeMap[t.Type] = t
+	}
+
+	for _, t := range engineTypes {
+		typeMap[t.CString()] = t
 	}
 
 	typeMap["Vector3"] = StructType{
@@ -221,6 +274,22 @@ func GetType(s string) Type {
 	}
 
 	panic(fmt.Sprintf("no such type: %v", s))
+}
+
+func guessType(stackSize int) Type {
+	switch {
+	case stackSize == 0:
+		return VoidType
+	case stackSize == 1:
+		return UnknownType
+	case stackSize == 3:
+		return Vector3Type
+	default:
+		return ArrayType{
+			BaseType: guessType(1),
+			NumElems: stackSize,
+		}
+	}
 }
 
 type DataTypeable interface {

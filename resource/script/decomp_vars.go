@@ -22,11 +22,18 @@ func (m *Machine) decompileSetP(block *BasicBlock, peek bool) {
 
 func (m *Machine) decompileGetP(block *BasicBlock) {
 	_ = block.instrs.nextInstruction()
-	src := DeRefExpr{
-		Node: block.popNode(),
+
+	var result Node
+	v := block.popNode()
+
+	switch v := v.(type) {
+	case PtrNode:
+		result = v.DeRef()
+	default:
+		result = DeRefExpr{v}
 	}
 
-	block.pushNode(src)
+	block.pushNode(result)
 }
 
 func (m *Machine) decompileAssignment(block *BasicBlock) {
@@ -70,7 +77,13 @@ func (m *Machine) decompileAssignment(block *BasicBlock) {
 
 func (m *Machine) decompileVarAccess(block *BasicBlock) {
 	istr := block.instrs.nextInstruction()
-	op := istr.Operands.(ImmediateIntOperands)
+	var index int
+	switch op := istr.Operands.(type) {
+	case ImmediateIntOperands:
+		index = op.Int()
+	case *NoOperands:
+		index = block.popNode().(Immediate).Value.(ImmediateIntOperands).Int()
+	}
 
 	isPtr := false
 	var src Node
@@ -79,30 +92,33 @@ func (m *Machine) decompileVarAccess(block *BasicBlock) {
 		isPtr = true
 		fallthrough
 	case OpGetGlobal:
-		src = m.file.GlobalByIndex(op.Int())
+		src = m.file.GlobalByIndex(index)
 
 	case OpGetStaticP:
 		isPtr = true
 		fallthrough
 	case OpGetStatic:
-		src = m.file.Decls.VariableByIndex(op.Int())
+		src = m.file.Decls.VariableByIndex(index)
 
 	case OpGetLocalP:
 		isPtr = true
 		fallthrough
 	case OpGetLocal:
-		src = block.VariableByIndex(op.Int())
+		src = block.VariableByIndex(index)
 
 	case OpGetFieldP:
 		isPtr = true
 		fallthrough
 	case OpGetField:
 		struc := block.popNode()
+		if s, ok := struc.(PtrNode); ok {
+			struc = s.DeRef()
+		}
 		src = StructField{
 			Struct: struc,
 			Field: &Variable{
-				Index:      op.Int(),
-				Identifier: fmt.Sprintf("field_%v", op.Int()),
+				Index:      index,
+				Identifier: fmt.Sprintf("field_%v", index),
 				Type:       UnknownType,
 			},
 		}
@@ -111,8 +127,12 @@ func (m *Machine) decompileVarAccess(block *BasicBlock) {
 		isPtr = true
 		fallthrough
 	case OpGetArray:
+		arr := block.popNode()
+		if s, ok := arr.(PtrNode); ok {
+			arr = s.DeRef()
+		}
 		src = ArrayIndex{
-			Array: block.popNode(),
+			Array: arr,
 			Index: block.popNode(),
 		}
 

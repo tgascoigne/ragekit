@@ -5,14 +5,16 @@ func (m *Machine) decompileCall(block *BasicBlock) {
 
 	var node Node
 	var targetFn *Function
-	isNative := false
+	inferArgIdentifiers := false
 
 	switch op := istr.Operands.(type) {
 	case *CallOperands:
 		targetFn = m.file.FunctionByAddress(op.Val)
 	case *CallNOperands:
-		isNative = true
-		targetFn = m.file.FunctionForNative(m.script.HashTable, op.Native)
+		targetFn, inferArgIdentifiers = m.file.FunctionForNative(m.script.HashTable, op)
+		// FunctionForNative's second parameter is true if the native spec had to be generated
+		// (and the arg identifiers are useless)
+		inferArgIdentifiers = !inferArgIdentifiers
 	}
 
 	args := make([]Node, targetFn.In.Size())
@@ -27,7 +29,7 @@ func (m *Machine) decompileCall(block *BasicBlock) {
 			inferrable.InferType(expectedType)
 		}
 
-		if v, valIsVariable := argValue.(*Variable); isNative && valIsVariable {
+		if v, valIsVariable := argValue.(*Variable); inferArgIdentifiers && valIsVariable {
 			v.Identifier = argVariable.Identifier
 		}
 
@@ -41,7 +43,7 @@ func (m *Machine) decompileCall(block *BasicBlock) {
 
 	outSize := targetFn.Out.DataType().StackSize()
 	if outSize > 0 {
-		tempDecl := VariableDeclaration{
+		tempDecl := &VariableDeclaration{
 			Variable: &Variable{
 				Identifier: m.genTempIdentifier(),
 				Type:       targetFn.Out.DataType(),
@@ -75,7 +77,7 @@ func (m *Machine) decompileReturn(block *BasicBlock) {
 	if op.NumReturnVals == 0 {
 		retVar.InferType(VoidType)
 		block.emitStatement(ReturnStmt{nil})
-	} else if op.NumReturnVals == 1 {
+	} else {
 		retVal := block.peekNode()
 		retVar.InferType(retVal.(DataTypeable).DataType())
 
@@ -84,7 +86,5 @@ func (m *Machine) decompileReturn(block *BasicBlock) {
 		}
 
 		block.emitStatement(ReturnStmt{retVal})
-	} else {
-		panic("unable to infer return value of function")
 	}
 }

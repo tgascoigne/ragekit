@@ -23,16 +23,18 @@ type nativeTable map[string]nativeCategory
 
 type nativeCategory map[string]NativeSpec
 
+type NativeParam struct {
+	Name       string `json:"name"`
+	Type       Type   `json:"-"`
+	TypeString string `json:"type"`
+}
+
 type NativeSpec struct {
-	Jhash  string `json:"jhash"`
-	Name   string `json:"name"`
-	Params []struct {
-		Name       string `json:"name"`
-		Type       Type   `json:"-"`
-		TypeString string `json:"type"`
-	} `json:"params"`
-	Results       Type   `json:"-"`
-	ResultsString string `json:"results"`
+	Jhash         string        `json:"jhash"`
+	Name          string        `json:"name"`
+	Params        []NativeParam `json:"params"`
+	Results       Type          `json:"-"`
+	ResultsString string        `json:"results"`
 }
 
 type NativeDB struct {
