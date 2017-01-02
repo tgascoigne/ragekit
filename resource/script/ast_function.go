@@ -54,8 +54,7 @@ type BasicBlock struct {
 
 	instrs *Instructions
 
-	nodeStack    []Node
-	nodeStackIdx int
+	nodeStack *link
 }
 
 func (b *BasicBlock) VariableByName(identifier string) *Variable {
@@ -78,32 +77,33 @@ func (block *BasicBlock) emitComment(format string, args ...interface{}) {
 }
 
 func (block *BasicBlock) pushNode(node Node) {
-	block.nodeStack = append(block.nodeStack, node)
-	block.nodeStackIdx++
+	block.nodeStack = &link{
+		Node: node,
+		next: block.nodeStack,
+	}
 	//block.emitComment("pushing %#v at stack idx %v", node, block.nodeStackIdx)
 }
 
 func (block *BasicBlock) popNode() Node {
-	if block.nodeStackIdx <= 0 {
+	popped := block.nodeStack
+	if popped == nil {
 		fmt.Println("node stack underflow")
 		return Immediate{&Immediate32Operands{Val: 0xBABE}}
 	}
 
-	node := block.peekNode()
-	block.nodeStackIdx--
-	block.nodeStack = block.nodeStack[:block.nodeStackIdx]
-	//fmt.Printf("popping %v %v\n", node.CString(), block.nodeStackIdx)
-	return node
+	block.nodeStack = popped.next
+	return popped.Node
 }
 
 func (block *BasicBlock) peekNode() Node {
-	if block.nodeStackIdx <= 0 {
+	popped := block.nodeStack
+	if popped == nil {
 		//		fmt.Printf("peek %v\n", block.nodeStackIdx)
 		fmt.Println("node stack underflow")
 		return Immediate{&Immediate32Operands{Val: 0xBABE}}
 	}
 
-	return block.nodeStack[block.nodeStackIdx-1]
+	return popped.Node
 }
 
 func (block *BasicBlock) CString() string {
