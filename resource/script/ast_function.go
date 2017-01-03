@@ -14,6 +14,7 @@ type Function struct {
 	Decls      Declarations
 
 	*BasicBlock
+	blocks map[uint32]*BasicBlock
 }
 
 func NewFunction() *Function {
@@ -23,6 +24,7 @@ func NewFunction() *Function {
 		instrs:     &Instructions{},
 	}
 	fn.BasicBlock = block
+	fn.blocks = make(map[uint32]*BasicBlock)
 	return fn
 }
 
@@ -55,6 +57,16 @@ type BasicBlock struct {
 	instrs *Instructions
 
 	nodeStack *link
+	Ins, Outs []*BasicBlock
+}
+
+func newBlock(parent *Function) *BasicBlock {
+	return &BasicBlock{
+		ParentFunc: parent,
+		instrs: &Instructions{
+			code: make([]InstructionState, 0),
+		},
+	}
 }
 
 func (b *BasicBlock) VariableByName(identifier string) *Variable {
@@ -104,6 +116,19 @@ func (block *BasicBlock) peekNode() Node {
 	}
 
 	return popped.Node
+}
+
+func (block *BasicBlock) nextInstruction() Instruction {
+	prevState := block.instrs.prevInstructionState()
+	if prevState != nil {
+		prevState.nodeStack = block.nodeStack
+	}
+
+	return block.instrs.nextInstruction()
+}
+
+func (block *BasicBlock) peekInstruction() Instruction {
+	return block.instrs.peekInstruction()
 }
 
 func (block *BasicBlock) CString() string {

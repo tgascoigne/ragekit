@@ -11,14 +11,22 @@ type Machine struct {
 }
 
 func NewMachine(script *Script, code []Instruction) *Machine {
-	return &Machine{
+	m := &Machine{
 		instrs: &Instructions{
-			code: code,
+			code: make([]InstructionState, len(code)),
 			idx:  0,
 		},
 		script: script,
 		file:   &File{},
 	}
+
+	for i := range code {
+		m.instrs.code[i] = InstructionState{
+			Instruction: code[i],
+		}
+	}
+
+	return m
 }
 
 func (m *Machine) createStaticDecls() {
@@ -104,6 +112,13 @@ func (m *Machine) scanFunction() *Function {
 		function.Decls.AddVariable(local.Declaration())
 	}
 
+	entryBlock := newBlock(function)
+	firstIstr := m.instrs.peekInstruction()
+	function.blocks[firstIstr.Address] = entryBlock
+	function.BasicBlock = entryBlock
+
+	var currentBlock *BasicBlock
+
 	// Scan for RETs and copy the instructions in this function into a new buffer
 	for !m.instrs.isEOF() {
 		nextIstr := m.instrs.peekInstruction()
@@ -111,7 +126,11 @@ func (m *Machine) scanFunction() *Function {
 			break
 		}
 
-		function.instrs.append(nextIstr)
+		if block, ok := function.blocks[nextIstr.Address]; ok {
+			currentBlock = block
+		}
+
+		currentBlock.instrs.append(nextIstr)
 		m.instrs.nextInstruction()
 	}
 
@@ -125,7 +144,7 @@ func (m *Machine) decompileFunction(fn *Function) {
 }
 
 func (m *Machine) decompileStatement(block *BasicBlock) {
-	istr := block.instrs.peekInstruction()
+	istr := block.peekInstruction()
 	block.emitComment("\t\t\t\t\t\t\tasm(\"%v\")", istr.String())
 	op := istr.Operation
 	switch {
@@ -140,11 +159,11 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 		m.decompilePushStr(block)
 	case op == OpDrop:
 		block.popNode()
-		block.instrs.nextInstruction()
+		block.nextInstruction()
 	case op == OpDup:
 		duped := block.peekNode()
 		block.pushNode(duped)
-		block.instrs.nextInstruction()
+		block.nextInstruction()
 
 	/* variable access ops */
 	case op == OpGetArrayP:
@@ -210,7 +229,7 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 }
 
 func (m *Machine) decompileUnknownOp(block *BasicBlock) {
-	istr := block.instrs.nextInstruction()
+	istr := block.nextInstruction()
 	if istr.Operation == OpNop {
 		return
 	}
@@ -219,7 +238,7 @@ func (m *Machine) decompileUnknownOp(block *BasicBlock) {
 
 func (m *Machine) decompileMathOp(block *BasicBlock) {
 	var token Token
-	op := block.instrs.nextInstruction()
+	op := block.nextInstruction()
 
 	// Handle the two unary operations first
 	if op.Operation == OpNot || op.Operation == OpNeg {

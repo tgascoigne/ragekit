@@ -34,7 +34,9 @@ const (
 	OpCallN
 	OpEnter
 	OpCall
+	OpCallP
 	OpRet
+	OpBranchStart
 	OpBranch
 	OpBranchZ
 	OpBranchNe
@@ -44,9 +46,9 @@ const (
 	OpBranchLt
 	OpBranchLe
 	OpSwitch
+	OpBranchEnd
 	OpCatch
 	OpThrow
-	OpCallP
 	OpFlowEnd  /* used to test for flow control ops */
 	OpVarStart /* used to test for var ops */
 	OpExplode
