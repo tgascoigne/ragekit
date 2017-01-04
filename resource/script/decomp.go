@@ -132,14 +132,66 @@ func (m *Machine) scanFunction() *Function {
 
 		currentBlock.instrs.append(nextIstr)
 		m.instrs.nextInstruction()
+
+		if nextIstr.Operation > OpBranchStart && nextIstr.Operation < OpBranchEnd {
+			m.scanBranch(function, nextIstr, currentBlock)
+		}
 	}
 
 	return function
 }
 
+func defineFlowPath(from, to *BasicBlock) {
+	from.Outs = append(from.Outs, to)
+	to.Ins = append(to.Ins, from)
+}
+
+func (m *Machine) scanBranch(fn *Function, istr Instruction, currentBlock *BasicBlock) {
+	// the address of the instruction immediately following the branch
+	nextAddress := m.instrs.peekInstruction().Address
+	fn.blocks[nextAddress] = newBlock(fn)
+
+	if istr.Operation != OpBranch {
+		// if the branch is conditional, then we need to create an entry point from istr to nextAddress
+		defineFlowPath(currentBlock, fn.blocks[nextAddress])
+	}
+
+	branchAddress := istr.Operands.(*BranchOperands).AbsoluteAddr
+	fn.blocks[branchAddress] = newBlock(fn)
+	defineFlowPath(currentBlock, fn.blocks[branchAddress])
+}
+
 func (m *Machine) decompileFunction(fn *Function) {
-	for !fn.instrs.isEOF() {
-		m.decompileStatement(fn.BasicBlock)
+	blocksStack := &link{
+		Node: fn.BasicBlock,
+	}
+
+	for blocksStack != nil {
+		// pop the next block
+		thisBlock := blocksStack.Node.(*BasicBlock)
+		blocksStack = blocksStack.next
+
+		if _, ok := fn.blocksVisited[thisBlock.StartAddress()]; ok {
+			// Dont decompile a block we've already visited
+			continue
+		}
+
+		// decompile this block
+		for !thisBlock.instrs.isEOF() {
+			m.decompileStatement(thisBlock)
+		}
+
+		fn.blocksVisited[thisBlock.StartAddress()] = true
+
+		// push all of the outgoing blocks of this one to the stack
+		// copy the node stack at the end of decompilation into the outgoing blocks
+		for _, block := range thisBlock.Outs {
+			block.nodeStack = thisBlock.nodeStack
+			blocksStack = &link{
+				Node: block,
+				next: blocksStack,
+			}
+		}
 	}
 }
 
@@ -219,6 +271,9 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 	/* binary ops */
 	case op > OpMathStart && op < OpMathEnd:
 		m.decompileMathOp(block)
+	/* bool ops */
+	case op > OpBoolStart && op < OpBoolEnd:
+		m.decompileBoolOp(block)
 
 	case op == OpRet:
 		m.decompileReturn(block)
@@ -236,17 +291,93 @@ func (m *Machine) decompileUnknownOp(block *BasicBlock) {
 	block.emitStatement(AsmStmt{istr.String()})
 }
 
+func (m *Machine) decompileBranch(block *BasicBlock) {
+	istr := block.nextInstruction()
+	op := istr.Operands.(*BranchOperands)
+
+	if len(block.Outs) != 2 {
+		panic(fmt.Sprintf("expected two outward blocks on conditional branch, got %v", len(block.Outs)))
+	}
+
+	if op.AbsoluteAddr > istr.Address {
+		cond := block.popNode()
+
+		switch istr.Operation {
+		case OpBranchZ:
+			cond = NotCond{
+				Node: cond,
+			}
+		}
+
+		var then, els *BasicBlock
+		if block.Outs[0].StartAddress() == op.AbsoluteAddr {
+			then, els = block.Outs[0], block.Outs[1]
+		} else {
+			els, then = block.Outs[0], block.Outs[1]
+		}
+
+		block.emitStatement(IfStmt{
+			Cond: cond,
+			Then: then,
+			Else: els,
+		})
+	} else {
+		block.emitComment("don't know how to parse conditional branch to previous address")
+		block.emitStatement(AsmStmt{istr.String()})
+	}
+}
+
+func (m *Machine) decompileBoolOp(block *BasicBlock) {
+	op := block.nextInstruction()
+	cond := block.popNode()
+
+	switch op.Operation {
+	case OpNot:
+		block.pushNode(NotCond{cond})
+		return
+	}
+
+	// The remaining ops are binary
+	var a, b Node
+	a = block.popNode()
+	if _, ok := op.Operands.(ImmediateIntOperands); ok {
+		// some math ops take an immediate operand in place of a stack operand
+		b = Immediate{op.Operands}
+	} else {
+		b = block.popNode()
+	}
+
+	var result Node
+	switch op.Operation {
+	case OpAnd:
+		result = AndCond{
+			A: a,
+			B: b,
+		}
+	case OpOr:
+		result = OrCond{
+			A: a,
+			B: b,
+		}
+	case OpXor:
+		result = XorCond{
+			A: a,
+			B: b,
+		}
+	default:
+		panic("unknown bool op")
+	}
+
+	block.pushNode(result)
+}
+
 func (m *Machine) decompileMathOp(block *BasicBlock) {
 	var token Token
 	op := block.nextInstruction()
 
-	// Handle the two unary operations first
-	if op.Operation == OpNot || op.Operation == OpNeg {
+	// Handle the neg unary operation first
+	if op.Operation == OpNeg {
 		a := block.popNode()
-
-		if op.Operation == OpNot {
-			token = NotToken
-		}
 
 		if op.Operation == OpNeg {
 			token = NegToken

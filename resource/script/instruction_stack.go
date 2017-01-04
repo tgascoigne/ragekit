@@ -25,7 +25,7 @@ func (s *Instructions) nextInstruction() Instruction {
 }
 
 func (s *Instructions) peekInstruction() Instruction {
-	if s.idx > len(s.code) {
+	if s.idx >= len(s.code) {
 		panic("eof when peeking instruction")
 	}
 

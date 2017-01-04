@@ -14,7 +14,8 @@ type Function struct {
 	Decls      Declarations
 
 	*BasicBlock
-	blocks map[uint32]*BasicBlock
+	blocks        map[uint32]*BasicBlock
+	blocksVisited map[uint32]bool
 }
 
 func NewFunction() *Function {
@@ -25,6 +26,7 @@ func NewFunction() *Function {
 	}
 	fn.BasicBlock = block
 	fn.blocks = make(map[uint32]*BasicBlock)
+	fn.blocksVisited = make(map[uint32]bool)
 	return fn
 }
 
@@ -67,6 +69,17 @@ func newBlock(parent *Function) *BasicBlock {
 			code: make([]InstructionState, 0),
 		},
 	}
+}
+
+func (b *BasicBlock) Empty() bool {
+	return len(b.instrs.code) == 0
+}
+
+func (b *BasicBlock) StartAddress() uint32 {
+	if len(b.instrs.code) > 0 {
+		return b.instrs.code[0].Address
+	}
+	return 0
 }
 
 func (b *BasicBlock) VariableByName(identifier string) *Variable {
@@ -134,7 +147,22 @@ func (block *BasicBlock) peekInstruction() Instruction {
 func (block *BasicBlock) CString() string {
 	stmts := make([]string, len(block.Statements))
 	for i, s := range block.Statements {
-		stmts[i] = fmt.Sprintf("\t%v;\n", s.CString())
+
+		hasSemicolon := false
+		switch s.(type) {
+		case IfStmt:
+		case Comment:
+
+		default:
+			hasSemicolon = true
+		}
+
+		stmt := s.CString()
+		if hasSemicolon {
+			fmt.Sprintf("%v;", stmt)
+		}
+
+		stmts[i] = fmt.Sprintf("\t%v\n", stmt)
 	}
 
 	return strings.Join(stmts, "")

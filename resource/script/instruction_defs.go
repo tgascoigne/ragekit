@@ -8,12 +8,14 @@ const (
 	OpMul
 	OpDiv
 	OpMod
-	OpNot
 	OpNeg
+	OpMathEnd /* used to test for math ops */
+	OpBoolStart
+	OpNot
 	OpAnd
 	OpOr
 	OpXor
-	OpMathEnd  /* used to test for math ops */
+	OpBoolEnd
 	OpCmpStart /* used to test for cmp ops */
 	OpCmpEq
 	OpCmpNe
@@ -45,8 +47,8 @@ const (
 	OpBranchGe
 	OpBranchLt
 	OpBranchLe
-	OpSwitch
 	OpBranchEnd
+	OpSwitch
 	OpCatch
 	OpThrow
 	OpFlowEnd  /* used to test for flow control ops */

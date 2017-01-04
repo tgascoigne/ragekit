@@ -15,13 +15,15 @@ const (
 	MulToken    Token = "*"
 	DivToken    Token = "/"
 	ModToken    Token = "%"
-	AndToken    Token = "&"
-	OrToken     Token = "|"
+	AndToken    Token = "&&"
+	OrToken     Token = "||"
 	XorToken    Token = "^"
 	NotToken    Token = "!"
 	NegToken    Token = "-"
 	RefToken    Token = "&"
 	DeRefToken  Token = "*"
+	IfToken     Token = "if"
+	NotEqToken  Token = "!="
 	ReturnToken Token = "return"
 	ExternToken Token = "extern"
 	StaticToken Token = "static"
@@ -492,4 +494,82 @@ func (s StructField) CString() string {
 
 func (s StructField) InferType(typ Type) {
 	s.Field.InferType(typ)
+}
+
+type IfStmt struct {
+	Cond Node
+	Then *BasicBlock
+	Else *BasicBlock
+}
+
+func (s IfStmt) CString() string {
+	buf := new(bytes.Buffer)
+
+	cond, then, els := s.Cond, s.Then, s.Else
+
+	// simplify empty 'then' blocks
+	// swap then with else, and invert cond
+	if then.Empty() {
+		cond = NotCond{cond}
+		then = els
+		els = nil
+	}
+
+	fmt.Fprintf(buf, "%v (%v) {\n%v\n}", IfToken, cond.CString(), then.CString())
+	if els != nil {
+		fmt.Fprintf(buf, " else {\n%v\n}", els.CString())
+	}
+	return buf.String()
+}
+
+type NotCond struct {
+	Node
+}
+
+func (c NotCond) CString() string {
+	if c, ok := c.Node.(NotCond); ok {
+		// Simplify double negations
+		return c.Node.CString()
+	}
+
+	return UnaryExpr{
+		Node: c.Node,
+		Op:   NotToken,
+	}.CString()
+}
+
+type AndCond struct {
+	A, B Node
+}
+
+func (c AndCond) CString() string {
+	return BinaryExpr{
+		Left:  c.A,
+		Op:    AndToken,
+		Right: c.B,
+	}.CString()
+}
+
+type OrCond struct {
+	A, B Node
+}
+
+func (c OrCond) CString() string {
+	return BinaryExpr{
+		Left:  c.A,
+		Op:    OrToken,
+		Right: c.B,
+	}.CString()
+}
+
+type XorCond struct {
+	A, B Node
+}
+
+func (c XorCond) CString() string {
+	return BinaryExpr{
+		Left:  c.A,
+		Op:    XorToken,
+		Right: c.B,
+	}.CString()
 }
