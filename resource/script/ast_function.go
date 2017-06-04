@@ -12,6 +12,7 @@ type Function struct {
 	Out        *Variable
 	Address    uint32
 	Decls      Declarations
+	instrs     *Instructions
 
 	*BasicBlock
 	blocks        map[uint32]*BasicBlock
@@ -27,6 +28,7 @@ func NewFunction() *Function {
 	fn.BasicBlock = block
 	fn.blocks = make(map[uint32]*BasicBlock)
 	fn.blocksVisited = make(map[uint32]bool)
+	fn.instrs = &Instructions{}
 	return fn
 }
 
@@ -37,6 +39,10 @@ func (fn *Function) CString() string {
 	}
 
 	return fmt.Sprintf("%v %v(%v) {\n%v\n%v}", fn.Out.Type.CString(), fn.Identifier, strings.Join(args, ", "), fn.Decls.CString(), fn.BasicBlock.CString())
+}
+
+func (fn *Function) resetBlocksVisited() {
+	fn.blocksVisited = make(map[uint32]bool)
 }
 
 func (fn *Function) inferReturnType(ret Instruction) {

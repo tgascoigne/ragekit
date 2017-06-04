@@ -112,16 +112,13 @@ func (m *Machine) scanFunction() *Function {
 		function.Decls.AddVariable(local.Declaration())
 	}
 
-	entryBlock := newBlock(function)
-	firstIstr := m.instrs.peekInstruction()
-	function.blocks[firstIstr.Address] = entryBlock
-	function.BasicBlock = entryBlock
+	m.scanFuncBounds(function)
+	m.scanBlocks(function)
+	m.scanFlow(function)
 
 	var currentBlock *BasicBlock
-
-	// Scan for RETs and copy the instructions in this function into a new buffer
-	for !m.instrs.isEOF() {
-		nextIstr := m.instrs.peekInstruction()
+	for !function.instrs.isEOF() {
+		nextIstr := function.instrs.peekInstruction()
 		if nextIstr.Operation == OpEnter {
 			break
 		}
@@ -131,14 +128,91 @@ func (m *Machine) scanFunction() *Function {
 		}
 
 		currentBlock.instrs.append(nextIstr)
-		m.instrs.nextInstruction()
-
-		if nextIstr.Operation > OpBranchStart && nextIstr.Operation < OpBranchEnd {
-			m.scanBranch(function, nextIstr, currentBlock)
-		}
+		function.instrs.nextInstruction()
 	}
 
 	return function
+}
+
+func (m *Machine) scanFuncBounds(fn *Function) {
+	// copy the instructions in this function into a new buffer
+	for !m.instrs.isEOF() {
+		nextIstr := m.instrs.peekInstruction()
+		if nextIstr.Operation == OpEnter {
+			break
+		}
+
+		fn.instrs.append(nextIstr)
+		m.instrs.nextInstruction()
+	}
+}
+
+func (m *Machine) scanBlocks(fn *Function) {
+	blockStartAddrs := make([]uint32, 0)
+	firstAddr := fn.instrs.peekInstruction().Address
+
+	blockStartAddrs = append(blockStartAddrs, firstAddr)
+	for !fn.instrs.isEOF() {
+		istr := fn.instrs.nextInstruction()
+
+		if istr.Operation > OpBranchStart && istr.Operation < OpBranchEnd {
+			branchAddr := istr.Operands.(*BranchOperands).AbsoluteAddr
+
+			if istr.Operation != OpBranch {
+				// conditional branch, mark addr following branch as a possible target
+				nextAddr := fn.instrs.peekInstruction().Address
+				blockStartAddrs = append(blockStartAddrs, nextAddr)
+			}
+			blockStartAddrs = append(blockStartAddrs, branchAddr)
+		}
+
+		if istr.Operation == OpSwitch {
+			operands := istr.Operands.(*SwitchOperands)
+			for _, addr := range operands.JumpTableAbs {
+				blockStartAddrs = append(blockStartAddrs, addr)
+			}
+		}
+	}
+
+	for _, addr := range blockStartAddrs {
+		fn.blocks[addr] = newBlock(fn)
+	}
+
+	fn.BasicBlock = fn.blocks[firstAddr]
+	fn.instrs.reset()
+}
+
+func (m *Machine) scanFlow(fn *Function) {
+	var currentBlock *BasicBlock
+	for !fn.instrs.isEOF() {
+		istr := fn.instrs.nextInstruction()
+		if block, ok := fn.blocks[istr.Address]; ok {
+			currentBlock = block
+		}
+
+		if istr.Operation > OpBranchStart && istr.Operation < OpBranchEnd {
+			if istr.Operation != OpBranch {
+				// conditional branch, mark addr following branch as a possible target
+				nextAddr := fn.instrs.peekInstruction().Address
+				nextBlock := fn.blocks[nextAddr]
+				defineFlowPath(currentBlock, nextBlock)
+			}
+
+			branchAddr := istr.Operands.(*BranchOperands).AbsoluteAddr
+			branchBlock := fn.blocks[branchAddr]
+			defineFlowPath(currentBlock, branchBlock)
+		}
+
+		if istr.Operation == OpSwitch {
+			operands := istr.Operands.(*SwitchOperands)
+			for _, addr := range operands.JumpTableAbs {
+				branchBlock := fn.blocks[addr]
+				defineFlowPath(currentBlock, branchBlock)
+			}
+		}
+	}
+
+	fn.instrs.reset()
 }
 
 func defineFlowPath(from, to *BasicBlock) {
@@ -162,6 +236,8 @@ func (m *Machine) scanBranch(fn *Function, istr Instruction, currentBlock *Basic
 }
 
 func (m *Machine) decompileFunction(fn *Function) {
+	fn.resetBlocksVisited()
+
 	blocksStack := &link{
 		Node: fn.BasicBlock,
 	}
@@ -180,6 +256,66 @@ func (m *Machine) decompileFunction(fn *Function) {
 		for !thisBlock.instrs.isEOF() {
 			m.decompileStatement(thisBlock)
 		}
+
+		fn.blocksVisited[thisBlock.StartAddress()] = true
+
+		// push all of the outgoing blocks of this one to the stack
+		// copy the node stack at the end of decompilation into the outgoing blocks
+		for _, block := range thisBlock.Outs {
+			block.nodeStack = thisBlock.nodeStack
+			blocksStack = &link{
+				Node: block,
+				next: blocksStack,
+			}
+		}
+	}
+}
+
+func (m *Machine) structureLoops(fn *Function, lastLoopBlock *BasicBlock) {
+	if len(lastLoopBlock.Outs) != 1 {
+		// find unconditional branches
+		return
+	}
+
+	targetBlock := lastLoopBlock.Outs[0]
+
+	if targetBlock.StartAddress() > lastLoopBlock.StartAddress() {
+		// Can't be a loop if it's branching to a higher address
+		return
+	}
+
+	if len(targetBlock.Outs) != 2 {
+		// A loop's first block will be a conditional branch
+		return
+	}
+
+	then, els := targetBlock.Outs[0], targetBlock.Outs[1]
+
+	if els.StartAddress() < lastLoopBlock.StartAddress() {
+		// the else block must be located after the end of the loop
+		return
+	}
+
+}
+
+func (m *Machine) visitBlocks(fn *Function, visitFn func(*Function, *BasicBlock)) {
+	fn.resetBlocksVisited()
+
+	blocksStack := &link{
+		Node: fn.BasicBlock,
+	}
+
+	for blocksStack != nil {
+		// pop the next block
+		thisBlock := blocksStack.Node.(*BasicBlock)
+		blocksStack = blocksStack.next
+
+		if _, ok := fn.blocksVisited[thisBlock.StartAddress()]; ok {
+			// Dont revisit a block we've already visited
+			continue
+		}
+
+		visitFn(fn, thisBlock)
 
 		fn.blocksVisited[thisBlock.StartAddress()] = true
 
@@ -267,6 +403,9 @@ func (m *Machine) decompileStatement(block *BasicBlock) {
 		m.decompileCall(block)
 	case op == OpCallN:
 		m.decompileCall(block)
+	//case op > OpBranchStart && op < OpBranchEnd:
+	case op == OpBranchZ || op == OpBranch:
+		m.decompileBranch(block)
 
 	/* binary ops */
 	case op > OpMathStart && op < OpMathEnd:
@@ -295,36 +434,31 @@ func (m *Machine) decompileBranch(block *BasicBlock) {
 	istr := block.nextInstruction()
 	op := istr.Operands.(*BranchOperands)
 
+	if istr.Operation == OpBranch {
+		// unconditional branch
+		block.emitStatement(Goto(op.AbsoluteAddr))
+		return
+	}
+
 	if len(block.Outs) != 2 {
 		panic(fmt.Sprintf("expected two outward blocks on conditional branch, got %v", len(block.Outs)))
 	}
 
-	if op.AbsoluteAddr > istr.Address {
-		cond := block.popNode()
+	then, els := block.Outs[0].StartAddress(), block.Outs[1].StartAddress()
 
-		switch istr.Operation {
-		case OpBranchZ:
-			cond = NotCond{
-				Node: cond,
-			}
+	var cond Node
+	switch istr.Operation {
+	case OpBranchZ:
+		cond = NotCond{
+			Node: cond,
 		}
-
-		var then, els *BasicBlock
-		if block.Outs[0].StartAddress() == op.AbsoluteAddr {
-			then, els = block.Outs[0], block.Outs[1]
-		} else {
-			els, then = block.Outs[0], block.Outs[1]
-		}
-
-		block.emitStatement(IfStmt{
-			Cond: cond,
-			Then: then,
-			Else: els,
-		})
-	} else {
-		block.emitComment("don't know how to parse conditional branch to previous address")
-		block.emitStatement(AsmStmt{istr.String()})
 	}
+
+	block.emitStatement(IfStmt{
+		Cond: cond,
+		Then: Goto(then),
+		Else: Goto(els),
+	})
 }
 
 func (m *Machine) decompileBoolOp(block *BasicBlock) {

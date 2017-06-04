@@ -6,8 +6,14 @@ type InstructionState struct {
 }
 
 type Instructions struct {
-	code []InstructionState
-	idx  int
+	code     []InstructionState
+	idx      int
+	idxStack *intStack
+}
+
+type intStack struct {
+	val  int
+	next *intStack
 }
 
 func (s *Instructions) prevInstructionState() *InstructionState {
@@ -16,6 +22,18 @@ func (s *Instructions) prevInstructionState() *InstructionState {
 	}
 
 	return &s.code[s.idx-1]
+}
+
+func (s *Instructions) pushPos() {
+	s.idxStack = &intStack{
+		val:  s.idx,
+		next: s.idxStack,
+	}
+}
+
+func (s *Instructions) popPos() {
+	s.idx = s.idxStack.val
+	s.idxStack = s.idxStack.next
 }
 
 func (s *Instructions) nextInstruction() Instruction {

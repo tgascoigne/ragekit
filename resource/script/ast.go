@@ -22,6 +22,7 @@ const (
 	NegToken    Token = "-"
 	RefToken    Token = "&"
 	DeRefToken  Token = "*"
+	GotoToken   Token = "goto"
 	IfToken     Token = "if"
 	NotEqToken  Token = "!="
 	ReturnToken Token = "return"
@@ -496,10 +497,16 @@ func (s StructField) InferType(typ Type) {
 	s.Field.InferType(typ)
 }
 
+type Goto uint32
+
+func (g Goto) CString() string {
+	return fmt.Sprintf("%v %v", GotoToken, uint32(g))
+}
+
 type IfStmt struct {
 	Cond Node
-	Then *BasicBlock
-	Else *BasicBlock
+	Then Node
+	Else Node
 }
 
 func (s IfStmt) CString() string {
@@ -509,7 +516,7 @@ func (s IfStmt) CString() string {
 
 	// simplify empty 'then' blocks
 	// swap then with else, and invert cond
-	if then.Empty() {
+	if then == nil {
 		cond = NotCond{cond}
 		then = els
 		els = nil
