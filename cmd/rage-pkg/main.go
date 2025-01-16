@@ -8,18 +8,32 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/tgascoigne/ragekit/resource"
 )
 
+var (
+	recursive = flag.Bool("recursive", false, "recursively extract nested RPF files")
+)
+
 func main() {
 	flag.Parse()
-
 	log.SetFlags(0)
 
-	in_file := flag.Arg(0)
+	if flag.NArg() < 2 {
+		log.Fatal("Usage: program [-recursive] <input_file> <output_directory>")
+	}
 
-	doExport(in_file)
+	inFile := flag.Arg(0)
+	outDir := flag.Arg(1)
+
+	// Create output directory if it doesn't exist
+	if err := os.MkdirAll(outDir, 0777); err != nil {
+		log.Fatalf("Failed to create output directory: %v", err)
+	}
+
+	doExport(inFile, outDir)
 }
 
 func uniquePath(dir, base, ext string) string {
@@ -31,13 +45,12 @@ func uniquePath(dir, base, ext string) string {
 	}
 }
 
-func doExport(in_file string) {
+func doExport(inFile, outDir string) {
 	var data []byte
 	var err error
 
-	log.Printf("Unpacking %v\n", in_file)
-
-	if data, err = ioutil.ReadFile(in_file); err != nil {
+	log.Printf("Unpacking %v to %v\n", inFile, outDir)
+	if data, err = ioutil.ReadFile(inFile); err != nil {
 		log.Fatal(err)
 	}
 
@@ -46,13 +59,13 @@ func doExport(in_file string) {
 
 	/* Unpack the package */
 	pkg := new(resource.Package)
-	if err = pkg.Unpack(data, path.Base(in_file), uint32(len(data))); err != nil {
+	if err = pkg.Unpack(data, path.Base(inFile), uint32(len(data))); err != nil {
 		log.Print(err)
 		return
 	}
 
 	root := pkg.Root()
-	unpack(pkg, root, []string{})
+	unpack(pkg, root, []string{outDir})
 
 	if unvisited := pkg.UnvisitedEntries(); len(unvisited) != 0 {
 		fmt.Printf("Unvisited entries!\n")
@@ -75,7 +88,10 @@ func unpack(pkg *resource.Package, node resource.PackageNode, path []string) {
 
 func unpackDir(pkg *resource.Package, dir resource.PackageDirectory, path []string) {
 	newPath := append(path, dir.Name(pkg))
-	os.MkdirAll(filepath.Join(newPath...), 0777)
+	dirPath := filepath.Join(newPath...)
+	if err := os.MkdirAll(dirPath, 0777); err != nil {
+		log.Fatalf("Failed to create directory %s: %v", dirPath, err)
+	}
 	for _, child := range dir.Children(pkg) {
 		unpack(pkg, child, newPath)
 	}
@@ -84,10 +100,20 @@ func unpackDir(pkg *resource.Package, dir resource.PackageDirectory, path []stri
 func unpackFile(pkg *resource.Package, file resource.PackageFile, path []string) {
 	newPathParts := append(path, file.Name(pkg))
 	newPath := filepath.Join(newPathParts...)
-	//	fmt.Printf("unpacking %v\n%#v\n", newPath, file)
 	data := file.Data(pkg)
-	err := ioutil.WriteFile(filepath.Join(newPath), data, 0777)
-	if err != nil {
-		panic(err)
+	
+	if err := ioutil.WriteFile(newPath, data, 0777); err != nil {
+		log.Fatalf("Failed to write file %s: %v", newPath, err)
+	}
+
+	// If recursive flag is set and this is an RPF file, extract it
+	if *recursive && strings.HasSuffix(strings.ToLower(file.Name(pkg)), ".rpf") {
+		// Create output directory for this RPF
+		basePath := strings.TrimSuffix(newPath, filepath.Ext(newPath))
+		rpfOutDir := basePath + "_rpf"
+		log.Printf("Recursively extracting %s to %s\n", newPath, rpfOutDir)
+		
+		// Create a new goroutine to handle the recursive extraction
+		doExport(newPath, rpfOutDir)
 	}
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	xmlx "github.com/jteeuwen/go-pkg-xmlx"
+	xmlx "github.com/gwitmond/go-pkg-xmlx"
 
 	"github.com/tgascoigne/ragekit/cmd/rage-model-export/export"
 )

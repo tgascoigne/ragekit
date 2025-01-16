@@ -2,16 +2,22 @@ package crypto
 
 import (
 	"bytes"
+	"embed"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 )
 
+//go:embed res/gtav_aes_key.dat
+//go:embed res/gtav_ng_key.dat
+//go:embed res/gtav_ng_decrypt_tables.dat
+//go:embed res/gtav_hash_lut.dat
+var resFS embed.FS
+
 const (
-	AESKeyFile          = "gtav_aes_key.dat"
-	NGKeyFile           = "gtav_ng_key.dat"
-	NGDecryptTablesFile = "gtav_ng_decrypt_tables.dat"
-	HashLookupFile      = "gtav_hash_lut.dat"
+	AESKeyFile          = "res/gtav_aes_key.dat"
+	NGKeyFile           = "res/gtav_ng_key.dat"
+	NGDecryptTablesFile = "res/gtav_ng_decrypt_tables.dat"
+	HashLookupFile      = "res/gtav_hash_lut.dat"
 )
 
 type Keys struct {
@@ -21,19 +27,20 @@ type Keys struct {
 	hashLookup     []byte
 }
 
-func LoadKeysFromDir(dir string) (Keys, error) {
+func LoadKeys() (Keys, error) {
 	var err error
 	keys := Keys{}
 
-	keys.aesKey, err = ioutil.ReadFile(fmt.Sprintf("%s/%s", dir, AESKeyFile))
+	// Load AES key
+	keys.aesKey, err = resFS.ReadFile(AESKeyFile)
 	if err != nil {
-		return keys, err
+		return keys, fmt.Errorf("reading AES key: %w", err)
 	}
 
-	var ngKeyBytes []byte
-	ngKeyBytes, err = ioutil.ReadFile(fmt.Sprintf("%s/%s", dir, NGKeyFile))
+	// Load NG keys
+	ngKeyBytes, err := resFS.ReadFile(NGKeyFile)
 	if err != nil {
-		return keys, err
+		return keys, fmt.Errorf("reading NG key: %w", err)
 	}
 
 	keys.ngKeys = make([][]byte, 101)
@@ -42,14 +49,13 @@ func LoadKeysFromDir(dir string) (Keys, error) {
 		ngKeyBytes = ngKeyBytes[272:]
 	}
 
-	var ngTableBytes []byte
-	ngTableBytes, err = ioutil.ReadFile(fmt.Sprintf("%s/%s", dir, NGDecryptTablesFile))
+	// Load NG decrypt tables
+	ngTableBytes, err := resFS.ReadFile(NGDecryptTablesFile)
 	if err != nil {
-		return keys, err
+		return keys, fmt.Errorf("reading NG decrypt tables: %w", err)
 	}
 
 	tableReader := bytes.NewReader(ngTableBytes)
-
 	keys.ngDecryptTable = make([][][]uint32, 17)
 	for i := 0; i < 17; i++ {
 		keys.ngDecryptTable[i] = make([][]uint32, 16)
@@ -59,9 +65,10 @@ func LoadKeysFromDir(dir string) (Keys, error) {
 		}
 	}
 
-	keys.hashLookup, err = ioutil.ReadFile(fmt.Sprintf("%s/%s", dir, HashLookupFile))
+	// Load hash lookup
+	keys.hashLookup, err = resFS.ReadFile(HashLookupFile)
 	if err != nil {
-		return keys, err
+		return keys, fmt.Errorf("reading hash lookup: %w", err)
 	}
 
 	return keys, nil

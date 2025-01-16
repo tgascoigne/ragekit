@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 
 	"github.com/tgascoigne/ragekit/resource/crypto"
 	"github.com/tgascoigne/ragekit/resource/types"
@@ -276,11 +275,7 @@ func (pkg *Package) parseEntry() (PackageNode, error) {
 }
 
 func (pkg *Package) cryptoContext() (*crypto.Context, error) {
-	keyDir := os.Getenv(CryptoKeyEnv)
-	if keyDir == "" {
-		keyDir = "."
-	}
-	keys, err := crypto.LoadKeysFromDir(keyDir)
+	keys, err := crypto.LoadKeys()
 	if err != nil {
 		return nil, err
 	}

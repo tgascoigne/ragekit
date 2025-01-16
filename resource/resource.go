@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 
 	"github.com/Microsoft/go-winio/wim/lzx"
 	"github.com/tgascoigne/ragekit/resource/crypto"
@@ -135,11 +134,7 @@ func (res *Container) Unpack(data []byte, filename string, filesize uint32) erro
 	res.Data = data
 	res.size = int64(len(data))
 
-	keyDir := os.Getenv(CryptoKeyEnv)
-	if keyDir == "" {
-		keyDir = "."
-	}
-	keys, err := crypto.LoadKeysFromDir(keyDir)
+	keys, err := crypto.LoadKeys()
 	if err != nil {
 		panic(err)
 	}
